@@ -1,0 +1,43 @@
+--- Definitions of structures and functions to define the model
+
+fmod AGENTS is
+--- Agents are represented as a tuple ag(id,g,o,S) where
+--- * id is a natural number to identify the agent
+--- * g is the group identity {-1,+1}
+--- * o is the opinion [-1,1]
+--- * S is the memory vector or argument vector, represented as a list of values that can be 1 or -1
+	pr INT .
+	pr FLOAT .
+	pr LIST{Int} * (sort List{Int} to Memory, sort NeList{Int} to NeMemory) .
+
+	sort Agent .
+	op ag : Nat Int Float Memory -> Agent [ctor] .
+
+--- Equations:
+	vars id : Nat .
+	vars g i : Int .
+	vars o : Float .
+	vars S S' : Memory .  
+	
+	--- get positive arguments
+	op getPosArg : Agent -> Nat .
+	op getPosArg2 : Int Memory -> Nat . 
+	
+	eq getPosArg(ag(id,g,o,S)) = getPosArg2(g,S) .
+	eq getPosArg2(g, i S') = if g == i 
+							 then 1 + getPosArg2(g,S')
+							 else getPosArg2(g,S')
+							 fi .
+	eq getPosArg2(g, nil) = 0 . 
+
+	--- calculate opinion
+	op calOpinion : Agent -> Float .
+
+
+
+endfm
+
+
+--- testing
+--- Agent examples
+--- ag(1,-1,0.4,(-1 1 1 1 -1 1 -1 1))
