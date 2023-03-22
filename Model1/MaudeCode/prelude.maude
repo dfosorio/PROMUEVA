@@ -1,6 +1,6 @@
+load sampler .
 --- Definitions of structures and functions to define the model
-
-fmod AGENTS is
+mod AGENTS is
 --- Agents are represented as a tuple ag(id,g,o,S) where
 --- * id is a natural number to identify the agent
 --- * g is the group identity {-1,+1}
@@ -8,21 +8,21 @@ fmod AGENTS is
 --- * S is the memory vector or argument vector, represented as a list of values that can be 1 or -1
 	pr INT .
 	pr FLOAT .
+	pr SAMPLER .
 	pr LIST{Int} * (sort List{Int} to Memory, sort NeList{Int} to NeMemory) .
 
 	sort Agent .
 	op ag : Nat Int Float Memory -> Agent [ctor] .
 
 --- Equations:
-	vars id : Nat .
+	vars id a : Nat .
 	vars g i : Int .
-	vars o : Float .
+	vars o p w : Float .
 	vars S S' : Memory .  
 	
-	--- get positive arguments
+	--- get number of pro arguments
 	op getPosArg : Agent -> Nat .
 	op getPosArg2 : Int Memory -> Nat . 
-	
 	eq getPosArg(ag(id,g,o,S)) = getPosArg2(g,S) .
 	eq getPosArg2(g, i S') = if g == i 
 							 then 1 + getPosArg2(g,S')
@@ -31,13 +31,62 @@ fmod AGENTS is
 	eq getPosArg2(g, nil) = 0 . 
 
 	--- calculate opinion
-	op calOpinion : Agent -> Float .
+	op computeOpinion : Agent -> Float .
+	op computeOpinion2 : Int Memory -> Float .
+	eq computeOpinion(ag(id,g,o,S)) = computeOpinion2(g, S) .
+	eq computeOpinion2(g, S) = 2.0 * ( float(getPosArg2(g,S)) / float(size(S)) ) - 1.0 .
 
 
+	--- with probability p, choose probabilistically a pro argument or con argument
+	op chooseArgument : Float -> Int .
+	eq chooseArgument(p) = if sampleBerWithP(p) then 1 else -1 fi .
 
-endfm
+	--- initialize list of memories using the size of the memory and the pro argument probability p
+	op initMemory : Nat Float -> Memory .
+	eq initMemory(0,p) = nil .
+	eq initMemory(s(a),p) = chooseArgument(p) initMemory(a,p) .
 
+	--- initialize an Agent using: 
+	---   - The id of the agent (id)
+	---   - The group it belongs to (g)
+	---   -	The size of the memory (a) 
+	---   - The pro argument probability (w)
+	op initAgent : Nat Int Nat Float -> Agent .
+	op initAgent2 : Nat Int Memory -> Agent .
+	eq initAgent(id, g, a, w) = initAgent2(id, g, initMemory(a,w)) .
+	eq initAgent2(id, g, S) = ag(id, g, computeOpinion2(g, S), S) .
+
+endm
+
+--- Definition of view, to be able to construct sets of agents
+view Agent from TRIV to AGENTS is
+  sort Elt to Agent .
+endv
+
+mod NETWORK is 
+	pr SET{Agent} * (sort Set{Agent} to Network, sort NeSet{Agent} to NeNetwork) .
+	pr AGENTS .
+
+
+	--- initialize a network. The parameters are:
+	---   - The size of the network (N)
+	---   - The pro argument probability (w)
+	---   -	The size of the memory (a)
+	--- Half of the network will belong to group +1 and the other half to group -1
+	vars N n a mid : Nat .
+	vars w : Float .
+	
+	op initNetwork : Nat Nat Float -> Network .
+	op initNetwork2 : Nat Nat Float Nat -> Network .
+	eq initNetwork(N,a,w) = initNetwork2(N, a, w, N quo 2) .
+	eq initNetwork2(s(n),a,w,mid) = if s(n) <= mid 
+									then initAgent(s(n),1,a,w) , initNetwork2(n,a,w,mid)
+									else initAgent(s(n),-1,a,w) , initNetwork2(n,a,w,mid)
+									fi .
+	eq initNetwork2(0,a,w,mid) = (empty).Network .		
+	
+endm 
 
 --- testing
 --- Agent examples
---- ag(1,-1,0.4,(-1 1 1 1 -1 1 -1 1))
+--- ag(1,-1,0.4,(1 1 1 1 1 1 1 1))
