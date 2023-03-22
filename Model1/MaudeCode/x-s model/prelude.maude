@@ -1,12 +1,68 @@
+--- ----------------------------------
+--- Prelude of the X-S Model
+--- ----------------------------------
+
 load sampler .
---- Definitions of structures and functions to define the model
+
+fmod ARGUMENT is
+--- Arguments consist of a pair <id,b> where:
+--- *id is a natural number to identify the argument
+--- *b can be 1 if it is a pro argument, or -1 if it is a con argument
+	sort Argument .
+	pr INT .
+	pr NAT .
+
+	op [_,_] : Nat Int -> Argument [ctor] . 
+
+endfm
+
+--- Definition of view, to be able to construct sets of arguments
+view Argument from TRIV to ARGUMENT is
+  sort Elt to Argument .
+endv 
+
+mod ARGUMENTPOOL is
+--- Used to define the set of all the arguments 
+	pr SAMPLER .
+	pr ARGUMENT .
+	pr SET{Argument} * (sort Set{Argument} to ArgumentSet, sort NeSet{Argument} to NeArgumentSet) .
+	sort ArgumentPool .
+
+--- The argument pool consists of two ArgumentSets
+--- The first one is the pro arguments and the second one is con arguments
+	op {_|_} : ArgumentSet ArgumentSet -> ArgumentPool [ctor] .
+
+--- Equations
+	vars a b : Nat .
+
+	--- initialize an ArgumentSet with a pro arguments
+	op initProArgumentSet : Nat -> ArgumentSet .
+	eq initProArgumentSet(s(a)) = [s(a), 1] , initProArgumentSet(a) .
+	eq initProArgumentSet(0) = (empty).ArgumentSet .
+
+		--- initialize an ArgumentSet with a con arguments
+	op initConArgumentSet : Nat -> ArgumentSet .
+	eq initConArgumentSet(s(a)) = [s(a), -1] , initConArgumentSet(a) .
+	eq initConArgumentSet(0) = (empty).ArgumentSet .
+
+	--- initialize an Argument pool with a pro arguments and b pro arguments
+	op initArgumentPool : Nat Nat -> ArgumentPool .
+	eq initArgumentPool(a,b) = { (initProArgumentSet(a)) | (initConArgumentSet(b)) } .
+
+	--- randomly pick an Argument from an ArgumentSet
+	op randomPick : ArgumentSet -> Argument .
+
+endm
+
 mod AGENTS is
 --- Agents are represented as a tuple ag(id,g,o,S) where
 --- * id is a natural number to identify the agent
 --- * g is the group identity {-1,+1}
 --- * o is the opinion [-1,1]
---- * S is the memory vector or argument vector, represented as a list of values that can be 1 or -1
-	pr INT .
+--- * S is the memory vector or argument vector, represented as a list of arguments
+--- * Memory is like a queue with fixed size, where the last argument that enters the memory is the most relevant
+	pr ARGUMENT .
+	pr ARGUMENTPOOL .
 	pr FLOAT .
 	pr SAMPLER .
 	pr LIST{Int} * (sort List{Int} to Memory, sort NeList{Int} to NeMemory) .
@@ -64,8 +120,8 @@ view Agent from TRIV to AGENTS is
 endv
 
 mod NETWORK is 
-	pr SET{Agent} * (sort Set{Agent} to Network, sort NeSet{Agent} to NeNetwork) .
 	pr AGENTS .
+	pr SET{Agent} * (sort Set{Agent} to Network, sort NeSet{Agent} to NeNetwork) .
 
 
 	--- initialize a network. The parameters are:
