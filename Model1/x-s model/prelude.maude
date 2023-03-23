@@ -35,7 +35,7 @@ mod ARGUMENTPOOL is
 --- Equations
 	vars a b : Nat .
 	vars A : Argument .
-	vars S : ArgumentSet .
+	vars S Pro Con : ArgumentSet .
 
 	--- initialize an ArgumentSet with a pro arguments
 	op initProArgumentSet : Nat -> ArgumentSet .
@@ -59,6 +59,10 @@ mod ARGUMENTPOOL is
 	--- Randomly select an argument of an argument set
 	op randomPick : ArgumentSet -> Argument .
 	eq randomPick(S) = selectElement(S, genRandom(0,| S | - 1)) .
+
+	--- eliminate argument from the argument pool 
+	op elimArg : ArgumentSet ArgumentPool -> ArgumentPool .
+	eq elimArg(S, {Pro | Con}) = {(Pro \ S) | (Con \ S)} .
 
 endm
 
@@ -86,6 +90,7 @@ mod AGENTS is
 	vars A : Argument .
 	vars AP : ArgumentPool .
 	vars PRO CON : ArgumentSet .  
+	vars NePRO NeCON : NeArgumentSet .
 	
 	--- get number of positive arguments for the agent in group g
 	op getPosArg : Agent -> Nat .
@@ -106,13 +111,20 @@ mod AGENTS is
 
 	--- with probability p, choose probabilistically a pro argument or con argument from the argument pool
 	--- The argument is picked randomly from the PRO ro CON argument set
+	--- if one set is empty, then pick randomly from the other set
 	op chooseArgument : Float ArgumentPool  -> Argument .
-	eq chooseArgument(p, { PRO | CON }) = if sampleBerWithP(p) then randomPick(PRO) else randomPick(CON) fi .
+	eq chooseArgument(p, { NePRO | NeCON }) = if sampleBerWithP(p) then randomPick(NePRO) else randomPick(NeCON) fi .
+	eq chooseArgument(p, { (empty).ArgumentSet | NeCON }) = randomPick(NeCON) .
+	eq chooseArgument(p, {  NePRO | (empty).ArgumentSet }) = randomPick(NePRO) .
 
 	--- initialize list of memories using the size of the memory, the pro argument probability p, and the argument pool
 	op initMemory : Nat Float ArgumentPool -> Memory .
+	op initMemory2 : Nat Float ArgumentPool Argument -> Memory .
+
 	eq initMemory(0,p,AP) = nil .
-	eq initMemory(s(a),p,AP) = chooseArgument(p,AP) initMemory(a,p,AP) .
+	eq initMemory(s(a),p,AP) = initMemory2(s(a), p, AP, chooseArgument(p, AP)) .
+	eq initMemory2(s(a), p, AP, A) = A initMemory(a, p, elimArg(A,AP)) .
+
 
 	--- initialize an Agent using: 
 	---   - The id of the agent (id)
@@ -136,6 +148,10 @@ mod NETWORK is
 	pr AGENTS .
 	pr SET{Agent} * (sort Set{Agent} to Network, sort NeSet{Agent} to NeNetwork) .
 
+--- Equations:
+	vars N P C S n mid : Nat .
+	vars w : Float .
+	vars AP : ArgumentPool .
 
 	--- initialize a network. The parameters are:
 	---   - The size of the network (N)
@@ -144,10 +160,6 @@ mod NETWORK is
 	---   -	The size of the memory (S)
 	---   - The pro argument probability (w)
 	--- Half of the network will belong to group +1 and the other half to group -1
-	vars N P C S n mid : Nat .
-	vars w : Float .
-	vars AP : ArgumentPool .
-	
 	op initNetwork : Nat Nat Nat Nat Float -> Network .
 	op initNetwork2 : Nat Nat Float ArgumentPool Nat -> Network .
 	
@@ -157,6 +169,67 @@ mod NETWORK is
 																		 then initAgent(s(n),1,S,w,AP) , initNetwork2(n,S,w,AP,mid)
 																		 else initAgent(s(n),-1,S,w,AP) , initNetwork2(n,S,w,AP,mid)
 																		 fi .
-	eq initNetwork2(0,S,w,AP,mid) = (empty).Network .		
-	
+	eq initNetwork2(0,S,w,AP,mid) = (empty).Network .
+ 
 endm 
+
+
+mod SIMVECELEM is
+--- Used to define the elements of the similarity vector
+	pr AGENTS .
+	pr FLOAT .
+	sort SimVecElem .
+	op {_|->_} : Agent Float -> SimVecElem .
+endm 
+
+--- Definition of view, to be able to construct the similarity vector
+view SimVecElem from TRIV to SIMVECELEM is
+  sort Elt to SimVecElem .
+endv
+
+mod SIMILARITYVECTOR is 
+--- the similarity vector is a list of SimVecElem elements
+	pr NETWORK .
+	pr SIMVECELEM .
+	pr LIST{SimVecElem} * (sort List{SimVecElem} to SimilarityVector, sort NeList{SimilarityVector} to NeSimilarityVector) .
+
+--- Equations
+	vars Net : Network .
+	vars Ag1 Ag2 : Agent .
+	vars ho hs o1 o2 : Float .
+	vars id1 id2 : Nat .
+	vars g1 g2 : Int .
+	vars S1 S2 : Memory .
+
+
+	--- compute the similarity of two agents using parameters ho and hs
+	op computeSimilarity : Agent Agent Float Float -> Float .
+	eq computeSimilarity(ag(id1,g1,o1,S1), ag(id2,g2,o2,S2), ho, hs) = 
+											(1.0 - (float(abs(g1 - g2)) + ho * abs(o1 - o2)) / (2.0 + 2.0 * ho)) ^ hs .
+
+	--- compute similarity vector using:
+	--- 	- the current network (Net)
+	--- 	- the agent ai (Ag1)
+	--- 	- parameter h_o
+	--- 	- parameter h_s 
+	op computeSimilarityVector : Agent Network Float Float -> SimilarityVector .
+	eq computeSimilarityVector(Ag1, (Ag2, Net), ho, hs) = {Ag2 |-> computeSimilarity(Ag1, Ag2, ho, hs)} 
+																												computeSimilarityVector(Ag1, Net, ho, hs) .
+	eq computeSimilarityVector(Ag1, (empty).Network, ho, hs) = nil . 
+
+
+	--- testing------------------------------------------
+	op testNet : -> Network .
+	eq testNet = initNetwork(6, 4, 4, 4, 0.5) .
+	
+	op firstEl : Network -> Agent .
+	eq firstEl((Ag1 , Net)) = Ag1 .
+
+
+
+	op simVect : -> SimilarityVector .
+	eq simVect = computeSimilarityVector(firstEl(testNet), delete(firstEl(testNet), testNet), 0.3, 2.0) .
+
+endm
+
+
