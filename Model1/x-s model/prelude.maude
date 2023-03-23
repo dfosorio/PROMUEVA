@@ -5,7 +5,7 @@
 load sampler .
 
 fmod ARGUMENT is
---- Arguments consist of a pair <id,b> where:
+--- Arguments consist of a pair [id,b] where:
 --- *id is a natural number to identify the argument
 --- *b can be 1 if it is a pro argument, or -1 if it is a con argument
 	sort Argument .
@@ -29,18 +29,20 @@ mod ARGUMENTPOOL is
 	sort ArgumentPool .
 
 --- The argument pool consists of two ArgumentSets
---- The first one is the pro arguments and the second one is con arguments
+--- The first one are the pro arguments and the second one are the con arguments
 	op {_|_} : ArgumentSet ArgumentSet -> ArgumentPool [ctor] .
 
 --- Equations
 	vars a b : Nat .
+	vars A : Argument .
+	vars S : ArgumentSet .
 
 	--- initialize an ArgumentSet with a pro arguments
 	op initProArgumentSet : Nat -> ArgumentSet .
 	eq initProArgumentSet(s(a)) = [s(a), 1] , initProArgumentSet(a) .
 	eq initProArgumentSet(0) = (empty).ArgumentSet .
 
-		--- initialize an ArgumentSet with a con arguments
+	--- initialize an ArgumentSet with a con arguments
 	op initConArgumentSet : Nat -> ArgumentSet .
 	eq initConArgumentSet(s(a)) = [s(a), -1] , initConArgumentSet(a) .
 	eq initConArgumentSet(0) = (empty).ArgumentSet .
@@ -49,8 +51,14 @@ mod ARGUMENTPOOL is
 	op initArgumentPool : Nat Nat -> ArgumentPool .
 	eq initArgumentPool(a,b) = { (initProArgumentSet(a)) | (initConArgumentSet(b)) } .
 
-	--- randomly pick an Argument from an ArgumentSet
+	--- select the nth argument of an argument set
+	op selectElement : ArgumentSet Nat -> Argument .
+	eq selectElement((A,S), 0) = A .
+	eq selectElement((A,S), s(a)) = selectElement(S, a) .
+
+	--- Randomly select an argument of an argument set
 	op randomPick : ArgumentSet -> Argument .
+	eq randomPick(S) = selectElement(S, genRandom(0,| S | - 1)) .
 
 endm
 
