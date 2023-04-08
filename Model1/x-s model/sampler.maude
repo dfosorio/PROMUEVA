@@ -17,7 +17,7 @@ mod SAMPLER is
   op randFloat : -> [Float] .
   rl randFloat => float(random(counter) / 4294967296) .
 
-  vars R : Float .
+  vars R MaxF : Float .
   vars Max Min : Nat .
 
   --- Bernoulli with probability R (R in [0.0,1.0])
@@ -27,5 +27,9 @@ mod SAMPLER is
   --- Generate a random natural number in interval [Min, Max] 
   op genRandom : Nat Nat -> Nat   .
   eq genRandom(Min, Max) = (rand rem ((Max - Min) + 1)) + Min .
+
+  --- Generate a random float number in interval [0.0, Max] 
+  op genRandom : Float -> Float   .
+  eq genRandom(MaxF) = randFloat * MaxF .
 
 endm

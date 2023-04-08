@@ -91,6 +91,10 @@ mod AGENTS is
 	vars AP : ArgumentPool .
 	vars PRO CON : ArgumentSet .  
 	vars NePRO NeCON : NeArgumentSet .
+
+	--- get id of agent
+	op getID : Agent -> Nat .
+	eq getID(ag(id,g,o,S)) = id .
 	
 	--- get number of positive arguments for the agent in group g
 	op getPosArg : Agent -> Nat .
@@ -196,39 +200,90 @@ mod SIMILARITYVECTOR is
 --- Equations
 	vars Net : Network .
 	vars Ag1 Ag2 : Agent .
-	vars ho hs o1 o2 : Float .
+	vars ho hs o1 o2 sum f F : Float .
 	vars id1 id2 : Nat .
 	vars g1 g2 : Int .
 	vars S1 S2 : Memory .
+	vars SV : SimilarityVector .
+	vars elem : SimVecElem .
 
 
-	--- compute the similarity of two agents using parameters ho and hs
-	op computeSimilarity : Agent Agent Float Float -> Float .
-	eq computeSimilarity(ag(id1,g1,o1,S1), ag(id2,g2,o2,S2), ho, hs) = 
-											(1.0 - (float(abs(g1 - g2)) + ho * abs(o1 - o2)) / (2.0 + 2.0 * ho)) ^ hs .
+	--- compute the similarity of two agents using parameter ho 
+	op computeSimilarity : Agent Agent Float -> Float .
+	eq computeSimilarity(ag(id1,g1,o1,S1), ag(id2,g2,o2,S2), ho) = 
+											(1.0 - (float(abs(g1 - g2)) + ho * abs(o1 - o2)) / (2.0 + 2.0 * ho)) .
 
 	--- compute similarity vector using:
 	--- 	- the current network (Net)
 	--- 	- the agent ai (Ag1)
-	--- 	- parameter h_o
-	--- 	- parameter h_s 
-	op computeSimilarityVector : Agent Network Float Float -> SimilarityVector .
-	eq computeSimilarityVector(Ag1, (Ag2, Net), ho, hs) = {Ag2 |-> computeSimilarity(Ag1, Ag2, ho, hs)} 
-																												computeSimilarityVector(Ag1, Net, ho, hs) .
-	eq computeSimilarityVector(Ag1, (empty).Network, ho, hs) = nil . 
+	--- 	- parameter h_o 
+	op computeSimilarityVector : Agent Network Float -> SimilarityVector .
+	eq computeSimilarityVector(Ag1, (Ag2, Net), ho) = if getID(Ag1) == getID(Ag2) then
+																													 computeSimilarityVector(Ag1, Net, ho)
+																												else
+																													 {Ag2 |-> computeSimilarity(Ag1, Ag2, ho)} 
+																												   computeSimilarityVector(Ag1, Net, ho) 
+																												fi .
+	eq computeSimilarityVector(Ag1, (empty).Network, ho) = nil .
 
+	--- --- for each element e, it returns e^hs
+	op exphs : SimilarityVector Float -> SimilarityVector .
+	eq exphs({Ag1 |-> f} SV, hs) = {Ag1 |-> (f ^ hs)} exphs(SV,hs) .
+	eq exphs(nil,hs) = nil .
+	
+	--- accumulate the weights of the similarity vector
+	op accumulate : SimilarityVector -> SimilarityVector .
+  op accumulate2 : SimilarityVector Float -> SimilarityVector .
+  eq accumulate(SV) = accumulate2(SV, 0.0) .
+  eq accumulate2({Ag1 |-> f} SV, F) = {Ag1 |-> (f + F)} accumulate2(SV, (f + F)) .
+  eq accumulate2(nil, F) = nil .
+
+  --- Maximum accumulated value
+  op maxValue : SimilarityVector -> Float .
+  eq maxValue( SV {Ag1 |-> f} ) = f .
+
+  --- probabiliscally get one element of accumulated list using a random number
+  op filter : SimilarityVector Float -> Agent .
+  eq filter({Ag1 |-> f} SV, F) = if F <= f 
+  															 then Ag1
+       													 else filter(SV, F) 
+       													 fi .
+
+  --- probabilistically choose one of the agents according to
+  --- 	- the current network (Net)
+	--- 	- the agent ai (Ag1)
+	--- 	- parameter h_o 
+	--- 	- parameter h_s
+	--- 1) calculate the similarity vector and for each element get e^hs
+	--- 2) accumulate the similarity vector
+	--- 3) generate a random float number between 0.0 and the max accumulated value
+	--- 4) filter using the random number and the accumulated list
+	op choosePartner : Agent Network Float Float -> Agent .
+	op choosePartner2 : SimilarityVector -> Agent .
+	
+	eq choosePartner(Ag1, Net, ho, hs) = choosePartner2(exphs(computeSimilarityVector(Ag1, Net, ho),hs)) .
+	eq choosePartner2(SV) = filter(accumulate(SV), genRandom(maxValue(SV))) . 
 
 	--- testing------------------------------------------
 	op testNet : -> Network .
-	eq testNet = initNetwork(6, 4, 4, 4, 0.5) .
+	eq testNet = initNetwork(4, 2, 2, 2, 0.5) .
 	
 	op firstEl : Network -> Agent .
 	eq firstEl((Ag1 , Net)) = Ag1 .
 
+	op first : -> Agent .
+	eq first = firstEl(testNet) .
 
 
 	op simVect : -> SimilarityVector .
-	eq simVect = computeSimilarityVector(firstEl(testNet), delete(firstEl(testNet), testNet), 0.3, 2.0) .
+	eq simVect = computeSimilarityVector(first, testNet, 0.3) .
+
+	op partner : -> Agent .
+	eq partner = choosePartner(first, testNet, 0.3, 2.0) .
+
+
+	op simVect3 : -> SimilarityVector .
+	eq simVect3 = accumulate(simVect) .
 
 endm
 
