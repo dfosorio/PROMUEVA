@@ -87,7 +87,7 @@ mod AGENTS is
 	vars g i : Int .
 	vars o p w : Float .
 	vars S : Memory .
-	vars A : Argument .
+	vars A A' : Argument .
 	vars AP : ArgumentPool .
 	vars PRO CON : ArgumentSet .  
 	vars NePRO NeCON : NeArgumentSet .
@@ -140,6 +140,36 @@ mod AGENTS is
 	op initAgent2 : Nat Int Memory -> Agent .
 	eq initAgent(id, g, a, w, AP) = initAgent2(id, g, initMemory(a,w,AP)) .
 	eq initAgent2(id, g, S) = ag(id, g, computeOpinion2(g, S), S) .
+
+
+	--- select the nth argument of an argument set
+	op selectElement : Memory Nat -> Argument .
+	eq selectElement((A S), 0) = A .
+	eq selectElement((A S), s(a)) = selectElement(S, a) .
+
+	--- drop the input argument from the input memory
+	op dropElement : Memory Argument -> Memory .
+	eq dropElement((A S), A') = if A == A' then S else A dropElement(S, A') fi .
+	eq dropElement(nil, A') = nil .
+
+	--- Randomly select an argument of a Memory
+	op randomPick : Memory -> Argument .
+	eq randomPick(S) = selectElement(S, genRandom(0,size(S) - 1)) .
+
+	--- shifts the input argument to the first position (it assumes argument is in memory)
+	op shift : Memory Argument -> Memory .
+	eq shift(S,A) = A dropElement(S,A) .
+
+	--- adds new argument in memory
+	--- when a new argument is added, the last argument in memory is dropped
+	--- if the new argument is already inside the memory, then it is shifted to the first position
+	--- it assumes that no argument is repeated in an agents memory
+	op addMemory : Memory Argument -> Memory .
+	eq addMemory(S, A) = if occurs(A,S) then
+											 		shift(S,A)
+											 else	
+											 		A dropElement(S,last(S))
+											 fi .	
 
 endm
 
