@@ -1,0 +1,105 @@
+load prelude .
+
+mod XSMODEL is
+  pr PRELUDE .
+  pr CONFIGURATION .
+  pr SET{Nat} * (sort Set{Nat} to NatSet, sort NeSet{Nat} to NeNatSet) .
+
+  
+  --- definition of system states
+  --- - Network  of the system
+  --- - Natural number that simbolizes the number of remaining iterations
+  --- - h0 parameter
+  --- - hs parameter 
+  sort State .
+  op <{_},_,_,_> : Network Nat Float Float  -> State [ctor] .
+
+  --- definition of structure that holds parameters
+  --- - The max number of iterations (MAX)
+  --- - The size of the network (N)
+  --- - The size of the pro argument set (P)
+  --- - The size of the con argument set (C)
+  --- -	The size of the memory (S)
+  --- - The pro argument probability (w)
+  --- - h0 parameter
+  --- - hs parameter
+  op par(_,_,_,_,_,_,_,_) : Nat Nat Nat Nat Nat Float Float Float -> State .
+  
+
+  --- Equations
+  vars Ag1 Ag2 Ag : Agent .
+  vars id1 id2 n a MAX N P C S id : Nat .
+  vars g1 g2 : Int .
+  vars S1 S2 : Memory .
+  vars o1 o2 ho hs w : Float .
+  vars Net Net' : Network .
+  vars t NS : NatSet .
+  
+
+  --- auxiliary functions-----------------------------------------------
+  --- create set of numbers from 1 to N
+  op createNatSet : Nat -> NatSet .
+  eq createNatSet(0) = (empty).NatSet .
+  eq createNatSet(s(n)) = s(n) , createNatSet(n) . 
+
+  --- select the nth argument of an argument set
+  op selectElement : NatSet Nat -> Nat .
+  eq selectElement((n,t), 0) = n .
+  eq selectElement((n,t), s(a)) = selectElement(t, a) .
+
+  --- Randomly select an argument of an argument set
+  op randomPick : NatSet -> Nat .
+  eq randomPick(t) = selectElement(t, genRandom(0,| t | - 1)) .
+  --- -------------------------------------------------------------------
+
+
+  --- simulates the interaction between agents Ag1 <- Ag2, i.e.
+  --- Ag2 shares an argument to Ag1, and Ag1 updates its opinion
+  op interaction : Agent Agent -> Agent .
+  op interaction2 : Agent -> Agent .
+  eq interaction(ag(id1,g1,o1,S1), ag(id2,g2,o2,S2)) = interaction2(ag(id1,g1,o1,addArgument(S1, randomPick(S2)))) .
+  eq interaction2(ag(id1,g1,o1,S1)) = ag(id1,g1,computeOpinion2(g1, S1),S1) .
+
+  --- chooses probabilistically an agent from the network and returns the updated agent after the interaction
+  op makeInteraction : Agent Network Float Float -> Agent .
+  eq makeInteraction(Ag1, Net, ho, hs) = interaction(Ag1, choosePartner(Ag1, Net, ho, hs)) .
+
+  --- iterates over all agents of the net and makes an intereaction
+  --- it returns the updated network
+  --- 1) generate a list with all possible Agent IDs
+  --- 2) pick one randomly from list of IDs, if the list is empty, then return the network
+  --- 3) search and get the agent in the network given the random ID
+  --- 4) make an interaction with the choosen agent, replace it in the network
+  --- and eliminate the already choosen ID from the id list
+  op updateNetwork : Network Float Float -> Network .
+  op updateNetwork2 : Network Float Float NatSet -> Network .
+  op updateNetwork3 : Network Float Float NatSet  Nat -> Network .
+  op updateNetwork4 : Network Float Float NatSet  Nat Agent -> Network .
+
+  eq updateNetwork(Net, ho, hs) = updateNetwork2(Net, ho, hs, createNatSet(| Net |)) .
+  
+  eq updateNetwork2(Net, ho, hs, NS) = if NS =/= empty
+  									   then updateNetwork3(Net, ho, hs, NS, randomPick(NS))
+  									   else Net
+  									   fi .
+  
+  eq updateNetwork3(Net, ho, hs, NS, id) = updateNetwork4(Net, ho, hs, NS, id, getAgent(id,Net)) .
+
+  eq updateNetwork4(Net, ho, hs, NS, id, Ag) = updateNetwork2(replaceAgent(makeInteraction(Ag, Net, ho, hs),Net),
+  															  ho, hs, (NS \ id)) .
+
+
+  --- System steps ------------------------------------------------------
+
+  --- initialization of the system:
+  --- the initial state is represented as a term of sort parameter
+  eq par(MAX,N,P,C,S,w,ho,hs) = <{initNetwork(N,P,C,S,w)}, MAX, ho, hs > .
+
+  --- make iteration (MAX = MAX - 1) :
+  rl < {Net}, s(a), ho, hs > => < {updateNetwork(Net,ho,hs)}, a, ho, hs > .
+  
+  --- -------------------------------------------------------------------
+
+
+endm
+

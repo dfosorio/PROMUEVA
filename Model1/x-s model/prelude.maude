@@ -164,8 +164,8 @@ mod AGENTS is
 	--- when a new argument is added, the last argument in memory is dropped
 	--- if the new argument is already inside the memory, then it is shifted to the first position
 	--- it assumes that no argument is repeated in an agents memory
-	op addMemory : Memory Argument -> Memory .
-	eq addMemory(S, A) = if occurs(A,S) then
+	op addArgument : Memory Argument -> Memory .
+	eq addArgument(S, A) = if occurs(A,S) then
 											 		shift(S,A)
 											 else	
 											 		A dropElement(S,last(S))
@@ -183,9 +183,37 @@ mod NETWORK is
 	pr SET{Agent} * (sort Set{Agent} to Network, sort NeSet{Agent} to NeNetwork) .
 
 --- Equations:
-	vars N P C S n mid : Nat .
+	vars N P C S n mid a id : Nat .
 	vars w : Float .
 	vars AP : ArgumentPool .
+	vars Net : Network .
+	vars Ag Ag2 : Agent .
+
+	--- select the nth argument of a Network
+	op selectElement : Network Nat -> Agent .
+	eq selectElement((Ag,Net), 0) = Ag .
+	eq selectElement((Ag,Net), s(a)) = selectElement(Net, a) .
+
+	--- Randomly select an agent from a Network
+	op randomPick : Network -> Agent .
+	eq randomPick(Net) = selectElement(Net, genRandom(0,| Net | - 1)) .
+
+	--- replaces the given agent in the network
+	op replaceAgent : Agent Network -> Network .
+	eq replaceAgent(Ag, (Ag2, Net)) = if getID(Ag) == getID(Ag2)
+																		then Ag, Net
+																		else Ag2, replaceAgent(Ag, Net)
+																		fi .
+	eq replaceAgent(Ag, (empty).Network) = (empty).Network . 
+
+	--- gets the agent in the network given an ID
+	--- it assumes that the agent is in the list
+	op getAgent : Nat Network -> Agent .
+	eq getAgent(id, (Ag, Net)) = if getID(Ag) == id
+															 then Ag
+															 else getAgent(id, Net)
+															 fi .
+
 
 	--- initialize a network. The parameters are:
 	---   - The size of the network (N)
@@ -296,7 +324,7 @@ mod SIMILARITYVECTOR is
 
 	--- testing------------------------------------------
 	op testNet : -> Network .
-	eq testNet = initNetwork(4, 2, 2, 2, 0.5) .
+	eq testNet = initNetwork(8, 4, 4, 4, 0.5) .
 	
 	op firstEl : Network -> Agent .
 	eq firstEl((Ag1 , Net)) = Ag1 .
@@ -317,4 +345,8 @@ mod SIMILARITYVECTOR is
 
 endm
 
+
+mod PRELUDE is
+	pr SIMILARITYVECTOR .
+endm
 
