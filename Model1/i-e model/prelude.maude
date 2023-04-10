@@ -1,0 +1,52 @@
+--- ----------------------------------
+--- Prelude of the I-E Model
+--- ----------------------------------
+
+load sampler .
+
+mod AGENTS is
+--- Agents are represented as a tuple ag(id,g,o,S) where
+--- * id is a natural number to identify the agent
+--- * g is the group identity {-1,+1}
+--- * o is the opinion [-1,1]
+--- * S is the memory size
+	pr FLOAT .
+	pr SAMPLER .
+
+	sort Agent .
+	op ag : Nat Int Float Int -> Agent [ctor] .
+
+--- Equations:
+	vars id a S pro : Nat .
+	vars g i : Int .
+	vars o w : Float .
+
+	--- get id of agent
+	op getID : Agent -> Nat .
+	eq getID(ag(id,g,o,S)) = id .
+
+	--- calculate opinion based on memory size S and number of pro arguments 
+	op computeOpinion : Nat Nat -> Float .
+	eq computeOpinion(S, pro) = 2.0 * ( float(pro) / float(S) ) - 1.0 .
+
+	--- with probability w and group identity g, choose probabilistically a pro argument or con argument
+	--- if it is pro then return 1, otherwise 0 . 
+	op chooseArgument : Float Int -> Nat .
+	eq chooseArgument(w, 1) = if sampleBerWithP(w) then 1 else 0 fi .
+	eq chooseArgument(w, -1) = if sampleBerWithP(w) then 0 else 1 fi .
+
+	--- choose S tiimes an argument, with probability w, group identity g
+	--- and return the number of pro arguments
+	op initArguments : Float Int Nat -> Nat .
+	eq initArguments(w,g,s(a)) = chooseArgument(w,g) + initArguments(w,g,a) .
+	eq initArguments(w,g,0) = 0 .
+
+	--- initialize an Agent using: 
+	---   - The id of the agent (id)
+	---   - The group it belongs to (g)
+	---   -	The size of the memory (S) 
+	---   - The pro argument probability (w)
+	op initAgent : Nat Int Nat Float -> Agent .
+	eq initAgent(id, g, S, w) = ag(id,g,computeOpinion(S, initArguments(w,g,S)), S) . 
+
+endm
