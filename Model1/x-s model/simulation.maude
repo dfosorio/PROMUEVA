@@ -1,0 +1,19 @@
+load model .
+
+mod SIMULATIONS is
+	pr XSMODEL .
+
+	--- simulation parameters
+	--- - MAX = 10^4
+    --- - N = 10
+    --- - P = 10
+    --- - C = 10
+    --- - S = 4
+    --- - w = 0.8
+    --- - h0 = 3.0
+    --- - hs = 4.0
+	op experiment1 : -> State .
+	eq experiment1 = par(10000,10,10,10,4,0.8,3.0,4.0) .
+endm
+
+rew experiment1 .

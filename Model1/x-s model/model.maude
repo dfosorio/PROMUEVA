@@ -92,7 +92,7 @@ mod XSMODEL is
   --- System steps ------------------------------------------------------
 
   --- initialization of the system:
-  --- the initial state is represented as a term of sort parameter
+  --- the initial state is represented as the term that stores all the parameters
   eq par(MAX,N,P,C,S,w,ho,hs) = <{initNetwork(N,P,C,S,w)}, MAX, ho, hs > .
 
   --- make iteration (MAX = MAX - 1) :
