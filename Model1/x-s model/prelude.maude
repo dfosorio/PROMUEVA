@@ -98,36 +98,37 @@ mod AGENTS is
 	
 	--- get number of positive arguments for the agent in group g
 	op getPosArg : Agent -> Nat .
-	op getPosArg2 : Int Memory -> Nat . 
-	eq getPosArg(ag(id,g,o,S)) = getPosArg2(g,S) .
-	eq getPosArg2(g, [a,i] S) = if g == i 
-							 then 1 + getPosArg2(g,S)
-							 else getPosArg2(g,S)
-							 fi .
-	eq getPosArg2(g, nil) = 0 . 
+	op getPosArg2 : Memory -> Nat . 
+	eq getPosArg(ag(id,g,o,S)) = getPosArg2(S) .
+	eq getPosArg2([a,i] S) = if 1 == i 
+													 then 1 + getPosArg2(S)
+													 else getPosArg2(S)
+													 fi .
+	eq getPosArg2(nil) = 0 . 
 
 	--- calculate opinion
 	op computeOpinion : Agent -> Float .
-	op computeOpinion2 : Int Memory -> Float .
-	eq computeOpinion(ag(id,g,o,S)) = computeOpinion2(g, S) .
-	eq computeOpinion2(g, S) = 2.0 * ( float(getPosArg2(g,S)) / float(size(S)) ) - 1.0 .
+	op computeOpinion2 : Memory -> Float .
+	eq computeOpinion(ag(id,g,o,S)) = computeOpinion2(S) .
+	eq computeOpinion2(S) = 2.0 * ( float(getPosArg2(S)) / float(size(S)) ) - 1.0 .
 
 
 	--- with probability p, choose probabilistically a pro argument or con argument from the argument pool
 	--- The argument is picked randomly from the PRO ro CON argument set
 	--- if one set is empty, then pick randomly from the other set
-	op chooseArgument : Float ArgumentPool  -> Argument .
-	eq chooseArgument(p, { NePRO | NeCON }) = if sampleBerWithP(p) then randomPick(NePRO) else randomPick(NeCON) fi .
-	eq chooseArgument(p, { (empty).ArgumentSet | NeCON }) = randomPick(NeCON) .
-	eq chooseArgument(p, {  NePRO | (empty).ArgumentSet }) = randomPick(NePRO) .
+	op chooseArgument : Int Float ArgumentPool  -> Argument .
+	eq chooseArgument(1, p, { NePRO | NeCON }) = if sampleBerWithP(p) then randomPick(NePRO) else randomPick(NeCON) fi .
+	eq chooseArgument(-1, p, { NePRO | NeCON }) = if sampleBerWithP(p) then randomPick(NeCON) else randomPick(NePRO) fi .
+	eq chooseArgument(g, p, { (empty).ArgumentSet | NeCON }) = randomPick(NeCON) .
+	eq chooseArgument(g, p, {  NePRO | (empty).ArgumentSet }) = randomPick(NePRO) .
 
 	--- initialize list of memories using the size of the memory, the pro argument probability p, and the argument pool
-	op initMemory : Nat Float ArgumentPool -> Memory .
-	op initMemory2 : Nat Float ArgumentPool Argument -> Memory .
+	op initMemory : Nat Int Float ArgumentPool -> Memory .
+	op initMemory2 : Nat Int Float ArgumentPool Argument -> Memory .
 
-	eq initMemory(0,p,AP) = nil .
-	eq initMemory(s(a),p,AP) = initMemory2(s(a), p, AP, chooseArgument(p, AP)) .
-	eq initMemory2(s(a), p, AP, A) = A initMemory(a, p, elimArg(A,AP)) .
+	eq initMemory(0,g,p,AP) = nil .
+	eq initMemory(s(a),g,p,AP) = initMemory2(s(a), g, p, AP, chooseArgument(g, p, AP)) .
+	eq initMemory2(s(a),g,p,AP,A) = A initMemory(a, g, p, elimArg(A,AP)) .
 
 
 	--- initialize an Agent using: 
@@ -138,8 +139,8 @@ mod AGENTS is
 	--- 	- The ArgumentPool (AP)
 	op initAgent : Nat Int Nat Float ArgumentPool -> Agent .
 	op initAgent2 : Nat Int Memory -> Agent .
-	eq initAgent(id, g, a, w, AP) = initAgent2(id, g, initMemory(a,w,AP)) .
-	eq initAgent2(id, g, S) = ag(id, g, computeOpinion2(g, S), S) .
+	eq initAgent(id, g, a, w, AP) = initAgent2(id, g, initMemory(a,g,w,AP)) .
+	eq initAgent2(id, g, S) = ag(id, g, computeOpinion2(S), S) .
 
 
 	--- select the nth argument of an argument set
@@ -176,7 +177,7 @@ mod AGENTS is
   op interaction : Agent Agent -> Agent .
   op interaction2 : Agent -> Agent .
   eq interaction(ag(id1,g1,o1,S1), ag(id2,g2,o2,S2)) = interaction2(ag(id1,g1,o1,addArgument(S1, randomPick(S2)))) .
-  eq interaction2(ag(id1,g1,o1,S1)) = ag(id1,g1,computeOpinion2(g1, S1),S1) .
+  eq interaction2(ag(id1,g1,o1,S1)) = ag(id1,g1,computeOpinion2(S1),S1) .
 
 endm
 
