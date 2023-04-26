@@ -1,4 +1,5 @@
-load model .
+--- load model .
+load model2 .
 
 mod SIMULATIONS is
 	pr XSMODEL .
@@ -14,6 +15,36 @@ mod SIMULATIONS is
     --- - hs = 4.0
 	op experiment1 : -> State .
 	eq experiment1 = par(10000,10,10,10,4,0.8,3.0,4.0) .
+
+    --- properties 
+    vars n id : Nat .
+    vars ho hs o o' : Float .
+    vars g : Int .
+    vars S : Memory .
+    vars Ag : Agent .
+    vars Net Net' : Network .
+
+
+    --- Moderate concensus: all agents hold the same opinion and is neither -1 nor 1.
+    op moderateConcensus : State -> Bool .
+    op moderateConcensus2 : Network -> Bool .
+    op moderateConcensus3 : Network Float -> Bool .
+
+    eq moderateConcensus(< {Net}, {Net'}, n, ho, hs >) = moderateConcensus2(Net) .
+    eq moderateConcensus2( (ag(id,g,o,S), Net) ) = if o =/= 1.0 and o =/= -1.0 then
+                                                 moderateConcensus3(Net, o)
+                                                 else
+                                                 false
+                                                 fi .
+    eq moderateConcensus3( (ag(id,g,o,S), Net), o') = if o == o' then
+                                                    moderateConcensus3( Net, o')
+                                                    else
+                                                    false
+                                                    fi .
+    eq moderateConcensus3( (empty).Network, o') = true .
+
+
+
 endm
 
 rew experiment1 .

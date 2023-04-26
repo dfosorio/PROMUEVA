@@ -23,7 +23,7 @@ mod XSMODEL is
   --- - The pro argument probability (w)
   --- - h0 parameter
   --- - hs parameter
-  op par(_,_,_,_,_,_,_,_) : Nat Nat Nat Nat Nat Float Float Float -> State .
+  op par : Nat Nat Nat Nat Nat Float Float Float -> State .
   
 
   --- Equations
@@ -51,14 +51,6 @@ mod XSMODEL is
   op randomPick : NatSet -> Nat .
   eq randomPick(t) = selectElement(t, genRandom(0,| t | - 1)) .
   --- -------------------------------------------------------------------
-
-
-  --- simulates the interaction between agents Ag1 <- Ag2, i.e.
-  --- Ag2 shares an argument to Ag1, and Ag1 updates its opinion
-  op interaction : Agent Agent -> Agent .
-  op interaction2 : Agent -> Agent .
-  eq interaction(ag(id1,g1,o1,S1), ag(id2,g2,o2,S2)) = interaction2(ag(id1,g1,o1,addArgument(S1, randomPick(S2)))) .
-  eq interaction2(ag(id1,g1,o1,S1)) = ag(id1,g1,computeOpinion2(g1, S1),S1) .
 
   --- chooses probabilistically an agent from the network and returns the updated agent after the interaction
   op makeInteraction : Agent Network Float Float -> Agent .
