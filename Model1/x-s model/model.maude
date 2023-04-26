@@ -2,19 +2,8 @@ load prelude .
 
 mod XSMODEL is
   pr PRELUDE .
-  pr CONFIGURATION .
-  pr SET{Nat} * (sort Set{Nat} to NatSet, sort NeSet{Nat} to NeNatSet) .
 
-  
-  --- definition of system states
-  --- - Network  of the system
-  --- - Natural number that simbolizes the number of remaining iterations
-  --- - h0 parameter
-  --- - hs parameter 
-  sort State .
-  op <{_},_,_,_> : Network Nat Float Float  -> State [ctor] .
-
-  --- definition of structure that holds parameters
+  --- definition of structure that holds parameters for initialization
   --- - The max number of iterations (MAX)
   --- - The size of the network (N)
   --- - The size of the pro argument set (P)
@@ -24,74 +13,47 @@ mod XSMODEL is
   --- - h0 parameter
   --- - hs parameter
   op par : Nat Nat Nat Nat Nat Float Float Float -> State .
-  
+  op par2 : Network Nat Float Float -> State .
 
-  --- Equations
-  vars Ag1 Ag2 Ag : Agent .
-  vars id1 id2 n a MAX N P C S id : Nat .
-  vars g1 g2 : Int .
-  vars S1 S2 : Memory .
-  vars o1 o2 ho hs w : Float .
+  --- definition of system states
+  --- - Network  of the system
+  --- - Auxiliary Network to loop over agents
+  --- - Natural number that simbolizes the number of remaining iterations
+  --- - h0 parameter
+  --- - hs parameter
+  --- - Agent1 selected for interaction
+  --- - Agent2 wich will influence Agent1 
+  
+  sort State .
+  op <{_},{_},_,_,_> : Network Network Nat Float Float  -> State [ctor] .
+  op <{_},{_},_,_,_,_> : Network Network Nat Float Float Agent -> State [ctor] .
+  op <{_},{_},_,_,_,{_},{_}> : Network Network Nat Float Float Agent Agent -> State [ctor] .
+
+  --- Variables
+  vars Ag Ag1 Ag2 : Agent .
+  vars MAX N P C S n : Nat .
+  vars ho hs w : Float .
   vars Net Net' : Network .
-  vars t NS : NatSet .
-  
-
-  --- auxiliary functions-----------------------------------------------
-  --- create set of numbers from 1 to N
-  op createNatSet : Nat -> NatSet .
-  eq createNatSet(0) = (empty).NatSet .
-  eq createNatSet(s(n)) = s(n) , createNatSet(n) . 
-
-  --- select the nth argument of an argument set
-  op selectElement : NatSet Nat -> Nat .
-  eq selectElement((n,t), 0) = n .
-  eq selectElement((n,t), s(a)) = selectElement(t, a) .
-
-  --- Randomly select an argument of an argument set
-  op randomPick : NatSet -> Nat .
-  eq randomPick(t) = selectElement(t, genRandom(0,| t | - 1)) .
-  --- -------------------------------------------------------------------
-
-  --- chooses probabilistically an agent from the network and returns the updated agent after the interaction
-  op makeInteraction : Agent Network Float Float -> Agent .
-  eq makeInteraction(Ag1, Net, ho, hs) = interaction(Ag1, choosePartner(Ag1, Net, ho, hs)) .
-
-  --- iterates over all agents of the net and makes an intereaction
-  --- it returns the updated network
-  --- 1) generate a list with all possible Agent IDs
-  --- 2) pick one randomly from list of IDs, if the list is empty, then return the network
-  --- 3) search and get the agent in the network given the random ID
-  --- 4) make an interaction with the choosen agent, replace it in the network
-  --- and eliminate the already choosen ID from the id list
-  op updateNetwork : Network Float Float -> Network .
-  op updateNetwork2 : Network Float Float NatSet -> Network .
-  op updateNetwork3 : Network Float Float NatSet  Nat -> Network .
-  op updateNetwork4 : Network Float Float NatSet  Nat Agent -> Network .
-
-  eq updateNetwork(Net, ho, hs) = updateNetwork2(Net, ho, hs, createNatSet(| Net |)) .
-  
-  eq updateNetwork2(Net, ho, hs, NS) = if NS =/= empty
-  									   then updateNetwork3(Net, ho, hs, NS, randomPick(NS))
-  									   else Net
-  									   fi .
-  
-  eq updateNetwork3(Net, ho, hs, NS, id) = updateNetwork4(Net, ho, hs, NS, id, getAgent(id,Net)) .
-
-  eq updateNetwork4(Net, ho, hs, NS, id, Ag) = updateNetwork2(replaceAgent(makeInteraction(Ag, Net, ho, hs),Net),
-  															  ho, hs, (NS \ id)) .
-
 
   --- System steps ------------------------------------------------------
-
-  --- initialization of the system:
-  --- the initial state is represented as the term that stores all the parameters
-  eq par(MAX,N,P,C,S,w,ho,hs) = <{initNetwork(N,P,C,S,w)}, MAX, ho, hs > .
-
-  --- make iteration (MAX = MAX - 1) :
-  rl < {Net}, s(a), ho, hs > => < {updateNetwork(Net,ho,hs)}, a, ho, hs > .
   
+  --- initial state
+  eq par(MAX,N,P,C,S,w,ho,hs) = par2(initNetwork(N,P,C,S,w),MAX,ho,hs) .
+  eq par2(Net,MAX,ho,hs) = < {Net}, {Net}, MAX, ho, hs > .
+  
+  --- loop over set of agents randomly (probabilistic since randomPick is used)
+  rl < {Net}, {Net'}, s(n), ho, hs > => < {Net}, {Net'}, s(n), ho, hs, randomPick(Net') > . 
+  
+  --- probabilistically select a partner for interaction (probability involved in choosePartner)
+  rl < {Net}, {Net'}, s(n), ho, hs, Ag > => < {Net}, {Net'}, s(n), ho, hs, {Ag}, {choosePartner(Ag, Net, ho, hs)} > .
+
+  --- make interaction between agents and update the network (probability in interaction (random pick of argument))
+  --- eliminate the agent1 from the set of available agents
+  rl < {Net}, {Net'}, s(n), ho, hs, {Ag1}, {Ag2} > => < {replaceAgent(interaction(Ag1,Ag2),Net)}, {Net' \ Ag1}, s(n), ho, hs > .
+
+  --- if already looped all agents, reduce the number of iterations, and start over (deterministic)
+  rl < {Net}, {(empty).Network}, s(n), ho, hs > => < {Net}, {Net}, n, ho, hs > .
+
   --- -------------------------------------------------------------------
 
-
-endm
-
+endm 

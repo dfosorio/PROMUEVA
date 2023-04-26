@@ -1,5 +1,5 @@
 --- load model .
-load model2 .
+load model .
 
 mod SIMULATIONS is
 	pr XSMODEL .
@@ -78,3 +78,5 @@ mod SIMULATIONS is
 
 
 endm
+
+rew experiment1 .
