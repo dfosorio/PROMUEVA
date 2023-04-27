@@ -13,8 +13,8 @@ mod SIMULATIONS is
     --- - w = 0.8
     --- - h0 = 3.0
     --- - hs = 4.0
-	op experiment1 : -> State .
-	eq experiment1 = par(10000,10,10,10,4,0.8,3.0,4.0) .
+	  op experiment1 : -> State .
+	  eq experiment1 = par(10000,10,10,10,4,0.8,3.0,4.0) .
 
     op experiment2 : -> State .
     eq experiment2 = par(10000,100,10,10,4,0.8,3.0,4.0) .
