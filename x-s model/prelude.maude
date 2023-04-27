@@ -1,0 +1,360 @@
+--- ----------------------------------
+--- Prelude of the X-S Model
+--- ----------------------------------
+
+load sampler .
+
+fmod ARGUMENT is
+--- Arguments consist of a pair [id,b] where:
+--- *id is a natural number to identify the argument
+--- *b can be 1 if it is a pro argument, or -1 if it is a con argument
+	sort Argument .
+	pr INT .
+	pr NAT .
+
+	op [_,_] : Nat Int -> Argument [ctor] . 
+
+endfm
+
+--- Definition of view, to be able to construct sets and lists of arguments
+view Argument from TRIV to ARGUMENT is
+  sort Elt to Argument .
+endv 
+
+mod ARGUMENTPOOL is
+--- Used to define the set of all the arguments 
+	pr SAMPLER .
+	pr ARGUMENT .
+	pr SET{Argument} * (sort Set{Argument} to ArgumentSet, sort NeSet{Argument} to NeArgumentSet) .
+	sort ArgumentPool .
+
+--- The argument pool consists of two ArgumentSets
+--- The first one are the pro arguments and the second one are the con arguments
+	op {_|_} : ArgumentSet ArgumentSet -> ArgumentPool [ctor] .
+
+--- Equations
+	vars a b : Nat .
+	vars A : Argument .
+	vars S Pro Con : ArgumentSet .
+
+	--- initialize an ArgumentSet with a pro arguments
+	op initProArgumentSet : Nat -> ArgumentSet .
+	eq initProArgumentSet(s(a)) = [s(a), 1] , initProArgumentSet(a) .
+	eq initProArgumentSet(0) = (empty).ArgumentSet .
+
+	--- initialize an ArgumentSet with a con arguments
+	op initConArgumentSet : Nat -> ArgumentSet .
+	eq initConArgumentSet(s(a)) = [s(a), -1] , initConArgumentSet(a) .
+	eq initConArgumentSet(0) = (empty).ArgumentSet .
+
+	--- initialize an Argument pool with a pro arguments and b pro arguments
+	op initArgumentPool : Nat Nat -> ArgumentPool .
+	eq initArgumentPool(a,b) = { (initProArgumentSet(a)) | (initConArgumentSet(b)) } .
+
+	--- select the nth argument of an argument set
+	op selectElement : ArgumentSet Nat -> Argument .
+	eq selectElement((A,S), 0) = A .
+	eq selectElement((A,S), s(a)) = selectElement(S, a) .
+
+	--- Randomly select an argument of an argument set
+	op randomPick : ArgumentSet -> Argument .
+	eq randomPick(S) = selectElement(S, genRandom(0,| S | - 1)) .
+
+	--- eliminate argument from the argument pool 
+	op elimArg : ArgumentSet ArgumentPool -> ArgumentPool .
+	eq elimArg(S, {Pro | Con}) = {(Pro \ S) | (Con \ S)} .
+
+endm
+
+mod AGENTS is
+--- Agents are represented as a tuple ag(id,g,o,S) where
+--- * id is a natural number to identify the agent
+--- * g is the group identity {-1,+1}
+--- * o is the opinion [-1,1]
+--- * S is the memory vector or argument vector, represented as a list of arguments
+--- * Memory is like a queue with fixed size, where the last argument that enters the memory is the most relevant
+	pr ARGUMENT .
+	pr ARGUMENTPOOL .
+	pr FLOAT .
+	pr SAMPLER .
+	pr LIST{Argument} * (sort List{Argument} to Memory, sort NeList{Argument} to NeMemory) .
+
+	sort Agent .
+	op ag : Nat Int Float Memory -> Agent [ctor] .
+
+--- Equations:
+	vars id id1 id2 a : Nat .
+	vars g g1 g2 i : Int .
+	vars o o1 o2 p w : Float .
+	vars S S1 S2 : Memory .
+	vars A A' : Argument .
+	vars AP : ArgumentPool .
+	vars PRO CON : ArgumentSet .  
+	vars NePRO NeCON : NeArgumentSet .
+
+	--- get id of agent
+	op getID : Agent -> Nat .
+	eq getID(ag(id,g,o,S)) = id .
+	
+	--- get number of positive arguments for the agent in group g
+	op getPosArg : Agent -> Nat .
+	op getPosArg2 : Memory -> Nat . 
+	eq getPosArg(ag(id,g,o,S)) = getPosArg2(S) .
+	eq getPosArg2([a,i] S) = if 1 == i 
+													 then 1 + getPosArg2(S)
+													 else getPosArg2(S)
+													 fi .
+	eq getPosArg2(nil) = 0 . 
+
+	--- calculate opinion
+	op computeOpinion : Agent -> Float .
+	op computeOpinion2 : Memory -> Float .
+	eq computeOpinion(ag(id,g,o,S)) = computeOpinion2(S) .
+	eq computeOpinion2(S) = 2.0 * ( float(getPosArg2(S)) / float(size(S)) ) - 1.0 .
+
+
+	--- with probability p, choose probabilistically a pro argument or con argument from the argument pool
+	--- The argument is picked randomly from the PRO ro CON argument set
+	--- if one set is empty, then pick randomly from the other set
+	op chooseArgument : Int Float ArgumentPool  -> Argument .
+	eq chooseArgument(1, p, { NePRO | NeCON }) = if sampleBerWithP(p) then randomPick(NePRO) else randomPick(NeCON) fi .
+	eq chooseArgument(-1, p, { NePRO | NeCON }) = if sampleBerWithP(p) then randomPick(NeCON) else randomPick(NePRO) fi .
+	eq chooseArgument(g, p, { (empty).ArgumentSet | NeCON }) = randomPick(NeCON) .
+	eq chooseArgument(g, p, {  NePRO | (empty).ArgumentSet }) = randomPick(NePRO) .
+
+	--- initialize list of memories using the size of the memory, the pro argument probability p, and the argument pool
+	op initMemory : Nat Int Float ArgumentPool -> Memory .
+	op initMemory2 : Nat Int Float ArgumentPool Argument -> Memory .
+
+	eq initMemory(0,g,p,AP) = nil .
+	eq initMemory(s(a),g,p,AP) = initMemory2(s(a), g, p, AP, chooseArgument(g, p, AP)) .
+	eq initMemory2(s(a),g,p,AP,A) = A initMemory(a, g, p, elimArg(A,AP)) .
+
+
+	--- initialize an Agent using: 
+	---   - The id of the agent (id)
+	---   - The group it belongs to (g)
+	---   -	The size of the memory (a) 
+	---   - The pro argument probability (w)
+	--- 	- The ArgumentPool (AP)
+	op initAgent : Nat Int Nat Float ArgumentPool -> Agent .
+	op initAgent2 : Nat Int Memory -> Agent .
+	eq initAgent(id, g, a, w, AP) = initAgent2(id, g, initMemory(a,g,w,AP)) .
+	eq initAgent2(id, g, S) = ag(id, g, computeOpinion2(S), S) .
+
+
+	--- select the nth argument of an argument set
+	op selectElement : Memory Nat -> Argument .
+	eq selectElement((A S), 0) = A .
+	eq selectElement((A S), s(a)) = selectElement(S, a) .
+
+	--- drop the input argument from the input memory
+	op dropElement : Memory Argument -> Memory .
+	eq dropElement((A S), A') = if A == A' then S else A dropElement(S, A') fi .
+	eq dropElement(nil, A') = nil .
+
+	--- Randomly select an argument of a Memory
+	op randomPick : Memory -> Argument .
+	eq randomPick(S) = selectElement(S, genRandom(0,size(S) - 1)) .
+
+	--- shifts the input argument to the first position (it assumes argument is in memory)
+	op shift : Memory Argument -> Memory .
+	eq shift(S,A) = A dropElement(S,A) .
+
+	--- adds new argument in memory
+	--- when a new argument is added, the last argument in memory is dropped
+	--- if the new argument is already inside the memory, then it is shifted to the first position
+	--- it assumes that no argument is repeated in an agents memory
+	op addArgument : Memory Argument -> Memory .
+	eq addArgument(S, A) = if occurs(A,S) then
+											 		shift(S,A)
+											 else	
+											 		A dropElement(S,last(S))
+											 fi .	
+
+	--- Interaction between agents Ag1 <- Ag2, i.e.
+  --- Ag2 shares an argument to Ag1, and Ag1 updates its opinion
+  op interaction : Agent Agent -> Agent .
+  op interaction2 : Agent -> Agent .
+  eq interaction(ag(id1,g1,o1,S1), ag(id2,g2,o2,S2)) = interaction2(ag(id1,g1,o1,addArgument(S1, randomPick(S2)))) .
+  eq interaction2(ag(id1,g1,o1,S1)) = ag(id1,g1,computeOpinion2(S1),S1) .
+
+endm
+
+--- Definition of view, to be able to construct sets of agents
+view Agent from TRIV to AGENTS is
+  sort Elt to Agent .
+endv
+
+mod NETWORK is 
+	pr AGENTS .
+	pr SET{Agent} * (sort Set{Agent} to Network, sort NeSet{Agent} to NeNetwork) .
+
+--- Equations:
+	vars N P C S n mid a id : Nat .
+	vars w : Float .
+	vars AP : ArgumentPool .
+	vars Net : Network .
+	vars Ag Ag2 : Agent .
+
+	--- select the nth argument of a Network
+	op selectElement : Network Nat -> Agent .
+	eq selectElement((Ag,Net), 0) = Ag .
+	eq selectElement((Ag,Net), s(a)) = selectElement(Net, a) .
+
+	--- Randomly select an agent from a Network
+	op randomPick : Network -> Agent .
+	eq randomPick(Net) = selectElement(Net, genRandom(0,| Net | - 1)) .
+
+	--- replaces the given agent in the network
+	op replaceAgent : Agent Network -> Network .
+	eq replaceAgent(Ag, (Ag2, Net)) = if getID(Ag) == getID(Ag2)
+																		then Ag, Net
+																		else Ag2, replaceAgent(Ag, Net)
+																		fi .
+	eq replaceAgent(Ag, (empty).Network) = (empty).Network . 
+
+	--- gets the agent in the network given an ID
+	--- it assumes that the agent is in the list
+	op getAgent : Nat Network -> Agent .
+	eq getAgent(id, (Ag, Net)) = if getID(Ag) == id
+															 then Ag
+															 else getAgent(id, Net)
+															 fi .
+
+
+	--- initialize a network. The parameters are:
+	---   - The size of the network (N)
+	--- 	- The size of the pro argument set (P)
+	--- 	- The size of the con argument set (C)
+	---   -	The size of the memory (S)
+	---   - The pro argument probability (w)
+	--- Half of the network will belong to group +1 and the other half to group -1
+	op initNetwork : Nat Nat Nat Nat Float -> Network .
+	op initNetwork2 : Nat Nat Float ArgumentPool Nat -> Network .
+	
+	eq initNetwork(N,P,C,S,w) = initNetwork2(N, S, w, initArgumentPool(P,C), N quo 2) .
+	
+	eq initNetwork2(s(n),S,w,AP,mid) = if s(n) <= mid 
+																		 then initAgent(s(n),1,S,w,AP) , initNetwork2(n,S,w,AP,mid)
+																		 else initAgent(s(n),-1,S,w,AP) , initNetwork2(n,S,w,AP,mid)
+																		 fi .
+	eq initNetwork2(0,S,w,AP,mid) = (empty).Network .
+ 
+endm 
+
+
+mod SIMVECELEM is
+--- Used to define the elements of the similarity vector
+	pr AGENTS .
+	pr FLOAT .
+	sort SimVecElem .
+	op {_|->_} : Agent Float -> SimVecElem .
+endm 
+
+--- Definition of view, to be able to construct the similarity vector
+view SimVecElem from TRIV to SIMVECELEM is
+  sort Elt to SimVecElem .
+endv
+
+mod SIMILARITYVECTOR is 
+--- the similarity vector is a list of SimVecElem elements
+	pr NETWORK .
+	pr SIMVECELEM .
+	pr LIST{SimVecElem} * (sort List{SimVecElem} to SimilarityVector, sort NeList{SimilarityVector} to NeSimilarityVector) .
+
+--- Equations
+	vars Net : Network .
+	vars Ag1 Ag2 : Agent .
+	vars ho hs o1 o2 sum f F : Float .
+	vars id1 id2 : Nat .
+	vars g1 g2 : Int .
+	vars S1 S2 : Memory .
+	vars SV : SimilarityVector .
+	vars elem : SimVecElem .
+
+
+	--- compute the similarity of two agents using parameter ho 
+	op computeSimilarity : Agent Agent Float -> Float .
+	eq computeSimilarity(ag(id1,g1,o1,S1), ag(id2,g2,o2,S2), ho) = 
+											(1.0 - (float(abs(g1 - g2)) + ho * abs(o1 - o2)) / (2.0 + 2.0 * ho)) .
+
+	--- compute similarity vector using:
+	--- 	- the current network (Net)
+	--- 	- the agent ai (Ag1)
+	--- 	- parameter h_o 
+	op computeSimilarityVector : Agent Network Float -> SimilarityVector .
+	eq computeSimilarityVector(Ag1, (Ag2, Net), ho) = if getID(Ag1) == getID(Ag2) then
+																													 computeSimilarityVector(Ag1, Net, ho)
+																												else
+																													 {Ag2 |-> computeSimilarity(Ag1, Ag2, ho)} 
+																												   computeSimilarityVector(Ag1, Net, ho) 
+																												fi .
+	eq computeSimilarityVector(Ag1, (empty).Network, ho) = nil .
+
+	--- --- for each element e, it returns e^hs
+	op exphs : SimilarityVector Float -> SimilarityVector .
+	eq exphs({Ag1 |-> f} SV, hs) = {Ag1 |-> (f ^ hs)} exphs(SV,hs) .
+	eq exphs(nil,hs) = nil .
+	
+	--- accumulate the weights of the similarity vector
+	op accumulate : SimilarityVector -> SimilarityVector .
+  op accumulate2 : SimilarityVector Float -> SimilarityVector .
+  eq accumulate(SV) = accumulate2(SV, 0.0) .
+  eq accumulate2({Ag1 |-> f} SV, F) = {Ag1 |-> (f + F)} accumulate2(SV, (f + F)) .
+  eq accumulate2(nil, F) = nil .
+
+  --- Maximum accumulated value
+  op maxValue : SimilarityVector -> Float .
+  eq maxValue( SV {Ag1 |-> f} ) = f .
+
+  --- probabiliscally get one element of accumulated list using a random number
+  op filter : SimilarityVector Float -> Agent .
+  eq filter({Ag1 |-> f} SV, F) = if F <= f 
+  															 then Ag1
+       													 else filter(SV, F) 
+       													 fi .
+
+  --- probabilistically choose one of the agents according to
+  --- 	- the current network (Net)
+	--- 	- the agent ai (Ag1)
+	--- 	- parameter h_o 
+	--- 	- parameter h_s
+	--- 1) calculate the similarity vector and for each element get e^hs
+	--- 2) accumulate the similarity vector
+	--- 3) generate a random float number between 0.0 and the max accumulated value
+	--- 4) filter using the random number and the accumulated list
+	op choosePartner : Agent Network Float Float -> Agent .
+	op choosePartner2 : SimilarityVector -> Agent .
+	
+	eq choosePartner(Ag1, Net, ho, hs) = choosePartner2(exphs(computeSimilarityVector(Ag1, Net, ho),hs)) .
+	eq choosePartner2(SV) = filter(accumulate(SV), genRandom(maxValue(SV))) . 
+
+	--- testing------------------------------------------
+	op testNet : -> Network .
+	eq testNet = initNetwork(8, 4, 4, 4, 0.5) .
+	
+	op firstEl : Network -> Agent .
+	eq firstEl((Ag1 , Net)) = Ag1 .
+
+	op first : -> Agent .
+	eq first = firstEl(testNet) .
+
+
+	op simVect : -> SimilarityVector .
+	eq simVect = computeSimilarityVector(first, testNet, 0.3) .
+
+	op partner : -> Agent .
+	eq partner = choosePartner(first, testNet, 0.3, 2.0) .
+
+
+	op simVect3 : -> SimilarityVector .
+	eq simVect3 = accumulate(simVect) .
+
+endm
+
+
+mod PRELUDE is
+	pr SIMILARITYVECTOR .
+endm
+
