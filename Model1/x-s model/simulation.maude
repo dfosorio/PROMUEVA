@@ -6,7 +6,7 @@ mod SIMULATIONS is
 
 	--- simulation parameters
 	--- - MAX = 10^4
-    --- - N = 10
+    --- - N = 10 and N = 100 for experiment2
     --- - P = 10
     --- - C = 10
     --- - S = 4
@@ -15,6 +15,9 @@ mod SIMULATIONS is
     --- - hs = 4.0
 	op experiment1 : -> State .
 	eq experiment1 = par(10000,10,10,10,4,0.8,3.0,4.0) .
+
+    op experiment2 : -> State .
+    eq experiment2 = par(10000,100,10,10,4,0.8,3.0,4.0) .
 
     --- properties 
     vars n id : Nat .
@@ -74,9 +77,7 @@ mod SIMULATIONS is
                                                       else
                                                       biPolarization2(Net, f1, f2 + o, FS)
                                                       fi .
-    eq biPolarization2((empty).Network, f1, f2, FS) = abs(f1 / FS) + abs(f2 / FS) == 2.0 . 
+    eq biPolarization2((empty).Network, f1, f2, FS) = abs((f1 / FS) - (f2 / FS)) == 2.0 . 
 
 
 endm
-
-rew experiment1 .
