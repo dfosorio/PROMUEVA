@@ -1,0 +1,99 @@
+----------------------------------
+--- Prelude of the I-E Model
+--- ----------------------------------
+
+load sampler .
+
+
+mod AGENTS is
+--- Agents are represented as a tuple ag(id,g,o,S) where
+--- * id is a natural number to identify the agent
+--- * g is the group identity {-1,+1}
+--- * o is the opinion [-1,1]
+--- * Pro is the number of pro arguments the agent has
+--- * Con is the number of con arguments the agent has
+--- * In every configuration, Pro + Con = S, where S is the system parameter
+---   for the memory size
+	pr SAMPLER .
+	pr FLOAT .
+
+
+	sort Agent .
+	op ag : Nat Int Float Nat Nat -> Agent [ctor] .
+
+--- Equations
+	vars id Pro Con : Nat .
+	vars g S n : Int .
+	vars o w : Float .
+	
+	--- get id of agent
+	--- op getID : Agent -> Nat .
+	--- eq getID(ag(id,g,o,Pro, Con)) = id .
+
+	--- get number of positive arguments
+	--- op getPosArg : Agent -> Nat .
+	--- eq getPosArg(ag(id,g,o,Pro,Con)) = Pro .
+
+	--- calculate opinion based on Pro and Con arguments
+	op computeOpinion : Nat Nat -> Float .
+	eq computeOpinion(Pro,Con) = 2.0 * ( float(Pro) / float(Pro + Con) ) - 1.0 .
+
+
+	--- calculate the probability that the agent communicates a pro argument and
+	--- calculate the probability that the agent drops a pro argument (both proabilities have the same formula)
+	op computeProb : Agent -> Float .
+	eq computeProb(ag(id,g,o,Pro,Con)) = 0.5 * (o + 1.0) .
+
+	--- initialize an Agent using: 
+	---   - The id of the agent (id)
+	---   - The group it belongs to (g)
+	---   -	The size of the memory (S) 
+	---   - The pro argument probability (w)
+	op initAgent : Nat Int Nat Float -> Agent .
+	op initAgent2 : Nat Int Nat Float Nat Nat -> Agent .
+
+	eq initAgent(id,g,S,w) = initAgent2(id,g,S,w,0,0) .
+	eq initAgent2(id,g,0,w,Pro,Con) = ag(id,g,computeOpinion(Pro,Con),Pro,Con) .
+	
+	eq initAgent2(id,1,s(n),w,Pro,Con) = if sampleBerWithP(w) then initAgent2(id,1,n,w,s(Pro),Con) 
+															  else initAgent2(id,1,n,w,Pro,s(Con)) fi .	
+	eq initAgent2(id,-1,s(n),w,Pro,Con) = if sampleBerWithP(w) then initAgent2(id,-1,n,w,Pro,s(Con)) 
+															   else initAgent2(id,-1,n,w,s(Pro),Con) fi .  
+
+endm 
+
+
+--- Definition of view, to be able to construct sets of agents
+view Agent from TRIV to AGENTS is
+  sort Elt to Agent .
+endv
+
+
+mod NETWORK is 
+	pr AGENTS .
+	pr SET{Agent} * (sort Set{Agent} to Network, sort NeSet{Agent} to NeNetwork) .
+
+--- Equations:
+	vars N S n mid : Nat .
+	vars w : Float .
+	vars Net : Network .
+
+	--- initialize a network. The parameters are:
+	---   - The size of the network (N)
+	---   -	The size of the memory (S)
+	---   - The pro argument probability (w)
+	--- Half of the network will belong to group +1 and the other half to group -1
+	op initNetwork : Nat Nat Float -> Network .
+	op initNetwork2 : Nat Nat Float Nat -> Network .
+
+	eq initNetwork(N, S, w) = initNetwork2(N, S, w, N quo 2) .
+	eq initNetwork2(s(n),S,w,mid) = if s(n) <= mid 
+									then initAgent(s(n),1,S,w) , initNetwork2(n,S,w,mid)
+									else initAgent(s(n),-1,S,w) , initNetwork2(n,S,w,mid)
+									fi .
+	eq initNetwork2(0,S,w,mid) = (empty).Network .
+
+endm 
+
+
+
