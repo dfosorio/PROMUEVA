@@ -1,0 +1,58 @@
+load prelude .
+
+mod ISMODEL is
+  pr PRELUDE .
+
+  --- definition of structure that holds parameters for initialization
+  --- - The max number of iterations (MAX)
+  --- - The size of the network (N)
+  --- - The size of the memory (S)
+  --- - The pro argument probability (w)
+  --- - ho parameter
+  --- - hs parameter
+  op par : Nat Nat Nat Float Float Float -> State .
+  op par2 : Network Nat Nat Float Float -> State .
+
+  --- definition of system states
+  --- - Network  of the system
+  --- - Auxiliary Network to loop over agents
+  --- - Natural number that simbolizes the number of remaining iterations
+  --- - S parameter
+  --- - h0 parameter
+  --- - hs parameter
+  --- - Agent1 selected for interaction
+  --- - Agent2 wich will influence Agent1 
+  
+  sort State .
+  op <{_},{_},_,_,_,_> : Network Network Nat Nat Float Float  -> State [ctor] .
+  op <{_},{_},_,_,_,_,_> : Network Network Nat Nat Float Float Agent -> State [ctor] .
+  op <{_},{_},_,_,_,_,{_},{_}> : Network Network Nat Nat Float Float Agent Agent -> State [ctor] .
+
+  --- Variables
+  vars Ag Ag1 Ag2 : Agent .
+  vars MAX N S n : Nat .
+  vars ho hs w : Float .
+  vars Net Net' : Network .
+
+  --- System steps ------------------------------------------------------
+  
+  --- initial state
+  eq par(MAX,N,S,w,ho,hs) = par2(initNetwork(N,S,w),MAX,S,ho,hs) .
+  eq par2(Net,MAX,S,ho,hs) = < {Net}, {Net}, MAX, S, ho, hs > .
+  
+  --- loop over set of agents randomly (probabilistic since randomPick is used)
+  rl < {Net}, {Net'}, s(n), S, ho, hs > => < {Net}, {Net'}, s(n), S, ho, hs, randomPick(Net') > . 
+  
+  --- randomly select a partner for interaction (probability involved in randomPick)
+  rl < {Net}, {Net'}, s(n), S, ho, hs, Ag > => < {Net}, {Net'}, s(n), S, ho, hs, {Ag}, {choosePartner(Ag, Net, ho, hs)} > .
+
+  --- make interaction between agents and update the network (probability in interaction (random pick of argument))
+  --- eliminate the agent1 from the set of available agents
+  rl < {Net}, {Net'}, s(n), S, ho, hs, {Ag1}, {Ag2} > => < {replaceAgent(interaction(Ag1,Ag2,S,ho,hs),Net)}, {Net' \ Ag1}, s(n), S, ho, hs > .
+
+  --- if already looped all agents, reduce the number of iterations, and start over (deterministic)
+  rl < {Net}, {(empty).Network}, s(n), S, ho, hs > => < {Net}, {Net}, n, S, ho, hs > .
+
+  --- -------------------------------------------------------------------
+
+endm 

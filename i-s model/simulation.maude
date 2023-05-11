@@ -1,7 +1,7 @@
 load model .
 
 mod SIMULATIONS is
-  pr IEMODEL .
+  pr ISMODEL .
 
   --- simulation parameters
   --- - MAX = 10^4
@@ -11,16 +11,13 @@ mod SIMULATIONS is
     --- - h0 = 3.0
     --- - hp = 4.0
     op experiment1 : -> State .
-    eq experiment1 = par(100000,10,4,0.8,3.0,4.0) .
+    eq experiment1 = par(10000,10,4,0.8,3.0,4.0) .
 
     op experiment2 : -> State .
     eq experiment2 = par(10000,100,4,0.8,3.0,4.0) .
 
-    op experiment3 : -> State .
-    eq experiment3 = par(10000,2,4,0.8,3.0,4.0) .
-
     --- properties 
-    vars n id Pro Con : Nat .
+    vars n id S : Nat .
     vars ho hp o o' f1 f2 FS : Float .
     vars g : Int .
     vars Ag : Agent .
@@ -32,13 +29,13 @@ mod SIMULATIONS is
     op moderateConcensus2 : Network -> Bool .
     op moderateConcensus3 : Network Float -> Bool .
 
-    eq moderateConcensus(< {Net}, {Net'}, n, ho, hp >) = moderateConcensus2(Net) .
-    eq moderateConcensus2( (ag(id,g,o,Pro,Con), Net) ) = if o =/= 1.0 and o =/= -1.0 then
+    eq moderateConcensus(< {Net}, {Net'}, n, S, ho, hp >) = moderateConcensus2(Net) .
+    eq moderateConcensus2( (ag(id,g,o), Net) ) = if o =/= 1.0 and o =/= -1.0 then
                                                  moderateConcensus3(Net, o)
                                                  else
                                                  false
                                                  fi .
-    eq moderateConcensus3( (ag(id,g,o,Pro,Con), Net), o') = if o == o' then
+    eq moderateConcensus3( (ag(id,g,o), Net), o') = if o == o' then
                                                     moderateConcensus3( Net, o')
                                                     else
                                                     false
@@ -51,13 +48,13 @@ mod SIMULATIONS is
     op extremeConcensus2 : Network -> Bool .
     op extremeConcensus3 : Network Float -> Bool .
 
-    eq extremeConcensus(< {Net}, {Net'}, n, ho, hp >) = extremeConcensus2(Net) .
-    eq extremeConcensus2( (ag(id,g,o,Pro,Con), Net) ) = if o == 1.0 or o == -1.0 then
+    eq extremeConcensus(< {Net}, {Net'}, n, S, ho, hp >) = extremeConcensus2(Net) .
+    eq extremeConcensus2( (ag(id,g,o), Net) ) = if o == 1.0 or o == -1.0 then
                                                   extremeConcensus3(Net, o)
                                                   else
                                                   false
                                                   fi .
-    eq extremeConcensus3( (ag(id,g,o,Pro,Con), Net), o') = if o == o' then
+    eq extremeConcensus3( (ag(id,g,o), Net), o') = if o == o' then
                                                     extremeConcensus3( Net, o')
                                                     else
                                                     false
@@ -70,8 +67,8 @@ mod SIMULATIONS is
     op biPolarization : State -> Bool .
     op biPolarization2 : Network Float Float Float -> Bool .
 
-    eq biPolarization(< {Net}, {Net'}, n, ho, hp >) = biPolarization2(Net, 0.0, 0.0, (float(| Net |) / 2.0))  .
-    eq biPolarization2((ag(id,g,o,Pro,Con), Net), f1, f2, FS) = if g == 1 then
+    eq biPolarization(< {Net}, {Net'}, n, S, ho, hp >) = biPolarization2(Net, 0.0, 0.0, (float(| Net |) / 2.0))  .
+    eq biPolarization2((ag(id,g,o), Net), f1, f2, FS) = if g == 1 then
                                                       biPolarization2(Net, f1 + o, f2, FS)
                                                       else
                                                       biPolarization2(Net, f1, f2 + o, FS)

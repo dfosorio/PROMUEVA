@@ -1,39 +1,34 @@
 ----------------------------------
---- Prelude of the I-E Model
+--- Prelude of the I-S Model
 --- ----------------------------------
 
 load sampler .
 
 
 mod AGENTS is
---- Agents are represented as a tuple ag(id,g,o,S) where
+--- Agents are represented as a tuple ag(id,g,o) where
 --- * id is a natural number to identify the agent
 --- * g is the group identity {-1,+1}
 --- * o is the opinion [-1,1]
---- * Pro is the number of pro arguments the agent has
---- * Con is the number of con arguments the agent has
---- * In every configuration, Pro + Con = S, where S is the system parameter
----   for the memory size
 	pr SAMPLER .
 	pr FLOAT .
 
 
 	sort Agent .
-	op ag : Nat Int Float Nat Nat -> Agent [ctor] .
+	op ag : Nat Int Float -> Agent [ctor] .
 
 --- Equations
-	vars id id1 id2 Pro Con S n Pro1 Pro2 Con1 Con2 : Nat .
+	vars id id1 id2 S n Pro Con : Nat .
 	vars g g1 g2 z1 z2 : Int .
 	vars o o1 o2 w p oi oj ho hp : Float .
-	
+
 	--- get id of agent
 	op getID : Agent -> Nat .
-	eq getID(ag(id,g,o,Pro, Con)) = id .
+	eq getID(ag(id,g,o)) = id .
 
 	--- calculate opinion based on Pro and Con arguments
 	op computeOpinion : Nat Nat -> Float .
-	eq computeOpinion(Pro,Con) = 2.0 * ( float(Pro) / float(Pro + Con) ) - 1.0 .
-
+	eq computeOpinion(Pro, Con) = 2.0 * ( float(Pro) / float(Pro + Con) ) - 1.0 .
 
 	--- calculate the probability (based on the opinion o) that the agent communicates a pro argument and
 	--- calculate the probability (based on the opinion o) that the agent drops a pro argument (both proabilities have the same formula)
@@ -58,6 +53,7 @@ mod AGENTS is
 	eq computeOpAdj2(true,true,S) = 0.0 .
 	eq computeOpAdj2(false,false,S) = 0.0 .
 
+
 	--- compute the similarity of two agents Ag1 and Ag2 using:
 	--- group identity 1 g1
 	--- group identity 2 g2
@@ -68,23 +64,24 @@ mod AGENTS is
 	eq computeSimilarity(g1,o1,g2,o2,ho) = 
 											(1.0 - (float(abs(g1 - g2)) + ho * abs(o1 - o2)) / (2.0 + 2.0 * ho)) .
 
-
 	--- truncatig function, used if the calculated opinion is outside the interval [-1,1]
 	op truncatingFunct : Float -> Float .
 	ceq truncatingFunct(o) = 1.0 if o > 1.0 .
 	ceq truncatingFunct(o) = -1.0 if o < -1.0 .
-	eq truncatingFunct(o) = o [owise] . 
+	eq truncatingFunct(o) = o [owise] .
 
 	--- Interaction between agents Ag1 <- Ag2, i.e.
   --- Ag2 shares an argument to Ag1, and Ag1 updates its opinion
   --- it takes into account:
   --- 	- The two agents Ag1 (first parameter) and Ag2 (second parameter)
+  --- 	- The size of the memory S
   --- 	- ho parameter
   --- 	- hp parameter
-  op interaction : Agent Agent Float Float -> Agent .
-  eq interaction(ag(id1,g1,o1,Pro1,Con1), ag(id2,g2,o2,Pro2,Con2), ho, hp) = ag(id1, g1, truncatingFunct(o1 + computeOpAdj(o1,o2,Pro1 + Con1) * (computeSimilarity(g1,o1,g2,o2,ho) ^ hp)), Pro1, Con1) .
+  op interaction : Agent Agent Nat Float Float -> Agent .
+  eq interaction(ag(id1,g1,o1), ag(id2,g2,o2), S, ho, hp) = ag(id1, g1, truncatingFunct(o1 + computeOpAdj(o1,o2,S))) .
 
-	--- initialize an Agent using: 
+
+  --- initialize an Agent using: 
 	---   - The id of the agent (id)
 	---   - The group it belongs to (g)
 	---   -	The size of the memory (S) 
@@ -93,14 +90,15 @@ mod AGENTS is
 	op initAgent2 : Nat Int Nat Float Nat Nat -> Agent .
 
 	eq initAgent(id,g,S,w) = initAgent2(id,g,S,w,0,0) .
-	eq initAgent2(id,g,0,w,Pro,Con) = ag(id,g,computeOpinion(Pro,Con),Pro,Con) .
+	eq initAgent2(id,g,0,w,Pro,Con) = ag(id,g,computeOpinion(Pro, Con)) .
 	
 	eq initAgent2(id,1,s(n),w,Pro,Con) = if sampleBerWithP(w) then initAgent2(id,1,n,w,s(Pro),Con) 
 															  else initAgent2(id,1,n,w,Pro,s(Con)) fi .	
 	eq initAgent2(id,-1,s(n),w,Pro,Con) = if sampleBerWithP(w) then initAgent2(id,-1,n,w,Pro,s(Con)) 
 															   else initAgent2(id,-1,n,w,s(Pro),Con) fi .  
 
-endm 
+
+endm
 
 
 --- Definition of view, to be able to construct sets of agents
@@ -153,9 +151,90 @@ mod NETWORK is
 									fi .
 	eq initNetwork2(0,S,w,mid) = (empty).Network .
 
+endm
+
+
+mod SIMVECELEM is
+--- Used to define the elements of the similarity vector
+	pr AGENTS .
+	pr FLOAT .
+	sort SimVecElem .
+	op {_|->_} : Agent Float -> SimVecElem .
 endm 
 
+--- Definition of view, to be able to construct the similarity vector
+view SimVecElem from TRIV to SIMVECELEM is
+  sort Elt to SimVecElem .
+endv
+
+
+mod SIMILARITYVECTOR is 
+--- the similarity vector is a list of SimVecElem elements
+	pr NETWORK .
+	pr SIMVECELEM .
+	pr LIST{SimVecElem} * (sort List{SimVecElem} to SimilarityVector, sort NeList{SimilarityVector} to NeSimilarityVector) .
+
+--- Equations
+	vars Net : Network .
+	vars Ag1 Ag2 : Agent .
+	vars ho hs o1 o2 sum f F : Float .
+	vars id1 id2 : Nat .
+	vars g1 g2 : Int .
+	vars SV : SimilarityVector .
+	vars elem : SimVecElem .
+
+	--- compute similarity vector using:
+	--- 	- the current network (Net)
+	--- 	- the agent ai (Ag1)
+	--- 	- parameter h_o 
+	op computeSimilarityVector : Agent Network Float -> SimilarityVector .
+	eq computeSimilarityVector(ag(id1,g1,o1), (ag(id2,g2,o2), Net), ho) = if id1 == id2 then
+																													 computeSimilarityVector(ag(id1,g1,o1), Net, ho)
+																													else
+																													 { ag(id2,g2,o2) |-> computeSimilarity(g1,o1,g2,o2,ho) } computeSimilarityVector(ag(id1,g1,o1), Net, ho) 
+																													fi .
+	eq computeSimilarityVector(Ag1, (empty).Network, ho) = nil .
+
+	--- --- for each element e, it returns e^hs
+	op exphs : SimilarityVector Float -> SimilarityVector .
+	eq exphs({Ag1 |-> f} SV, hs) = {Ag1 |-> (f ^ hs)} exphs(SV,hs) .
+	eq exphs(nil,hs) = nil .
+	
+	--- accumulate the weights of the similarity vector
+	op accumulate : SimilarityVector -> SimilarityVector .
+  op accumulate2 : SimilarityVector Float -> SimilarityVector .
+  eq accumulate(SV) = accumulate2(SV, 0.0) .
+  eq accumulate2({Ag1 |-> f} SV, F) = {Ag1 |-> (f + F)} accumulate2(SV, (f + F)) .
+  eq accumulate2(nil, F) = nil .
+
+  --- Maximum accumulated value
+  op maxValue : SimilarityVector -> Float .
+  eq maxValue( SV {Ag1 |-> f} ) = f .
+
+  --- probabiliscally get one element of accumulated list using a random number
+  op filter : SimilarityVector Float -> Agent .
+  eq filter({Ag1 |-> f} SV, F) = if F <= f 
+  															 then Ag1
+       													 else filter(SV, F) 
+       													 fi .
+
+  --- probabilistically choose one of the agents according to
+  --- 	- the current network (Net)
+	--- 	- the agent ai (Ag1)
+	--- 	- parameter h_o 
+	--- 	- parameter h_s
+	--- 1) calculate the similarity vector and for each element get e^hs
+	--- 2) accumulate the similarity vector
+	--- 3) generate a random float number between 0.0 and the max accumulated value
+	--- 4) filter using the random number and the accumulated list
+	op choosePartner : Agent Network Float Float -> Agent .
+	op choosePartner2 : SimilarityVector -> Agent .
+	
+	eq choosePartner(Ag1, Net, ho, hs) = choosePartner2(exphs(computeSimilarityVector(Ag1, Net, ho),hs)) .
+	eq choosePartner2(SV) = filter(accumulate(SV), genRandom(maxValue(SV))) .
+
+endm
 
 mod PRELUDE is
-	pr NETWORK .
+	pr SIMILARITYVECTOR .
 endm
