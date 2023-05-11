@@ -1,18 +1,16 @@
 load prelude .
 
-mod XSMODEL is
+mod IEMODEL is
   pr PRELUDE .
 
   --- definition of structure that holds parameters for initialization
   --- - The max number of iterations (MAX)
   --- - The size of the network (N)
-  --- - The size of the pro argument set (P)
-  --- - The size of the con argument set (C)
   --- -	The size of the memory (S)
   --- - The pro argument probability (w)
   --- - ho parameter
-  --- - hs parameter
-  op par : Nat Nat Nat Nat Nat Float Float Float -> State .
+  --- - hp parameter
+  op par : Nat Nat Nat Float Float Float -> State .
   op par2 : Network Nat Float Float -> State .
 
   --- definition of system states
@@ -20,7 +18,7 @@ mod XSMODEL is
   --- - Auxiliary Network to loop over agents
   --- - Natural number that simbolizes the number of remaining iterations
   --- - h0 parameter
-  --- - hs parameter
+  --- - hp parameter
   --- - Agent1 selected for interaction
   --- - Agent2 wich will influence Agent1 
   
@@ -31,28 +29,28 @@ mod XSMODEL is
 
   --- Variables
   vars Ag Ag1 Ag2 : Agent .
-  vars MAX N P C S n : Nat .
-  vars ho hs w : Float .
+  vars MAX N S n : Nat .
+  vars ho hp w : Float .
   vars Net Net' : Network .
 
   --- System steps ------------------------------------------------------
   
   --- initial state
-  eq par(MAX,N,P,C,S,w,ho,hs) = par2(initNetwork(N,P,C,S,w),MAX,ho,hs) .
-  eq par2(Net,MAX,ho,hs) = < {Net}, {Net}, MAX, ho, hs > .
+  eq par(MAX,N,S,w,ho,hp) = par2(initNetwork(N,S,w),MAX,ho,hp) .
+  eq par2(Net,MAX,ho,hp) = < {Net}, {Net}, MAX, ho, hp > .
   
   --- loop over set of agents randomly (probabilistic since randomPick is used)
-  rl < {Net}, {Net'}, s(n), ho, hs > => < {Net}, {Net'}, s(n), ho, hs, randomPick(Net') > . 
+  rl < {Net}, {Net'}, s(n), ho, hp > => < {Net}, {Net'}, s(n), ho, hp, randomPick(Net') > . 
   
-  --- probabilistically select a partner for interaction (probability involved in choosePartner)
-  rl < {Net}, {Net'}, s(n), ho, hs, Ag > => < {Net}, {Net'}, s(n), ho, hs, {Ag}, {choosePartner(Ag, Net, ho, hs)} > .
+  --- randomly select a partner for interaction (probability involved in randomPick)
+  rl < {Net}, {Net'}, s(n), ho, hp, Ag > => < {Net}, {Net'}, s(n), ho, hp, {Ag}, {randomPick(Net \ Ag)} > .
 
   --- make interaction between agents and update the network (probability in interaction (random pick of argument))
   --- eliminate the agent1 from the set of available agents
-  rl < {Net}, {Net'}, s(n), ho, hs, {Ag1}, {Ag2} > => < {replaceAgent(interaction(Ag1,Ag2),Net)}, {Net' \ Ag1}, s(n), ho, hs > .
+  rl < {Net}, {Net'}, s(n), ho, hp, {Ag1}, {Ag2} > => < {replaceAgent(interaction(Ag1,Ag2,ho,hp),Net)}, {Net' \ Ag1}, s(n), ho, hp > .
 
   --- if already looped all agents, reduce the number of iterations, and start over (deterministic)
-  rl < {Net}, {(empty).Network}, s(n), ho, hs > => < {Net}, {Net}, n, ho, hs > .
+  rl < {Net}, {(empty).Network}, s(n), ho, hp > => < {Net}, {Net}, n, ho, hp > .
 
   --- -------------------------------------------------------------------
 

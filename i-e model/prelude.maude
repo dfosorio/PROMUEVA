@@ -22,27 +22,69 @@ mod AGENTS is
 	op ag : Nat Int Float Nat Nat -> Agent [ctor] .
 
 --- Equations
-	vars id Pro Con : Nat .
-	vars g S n : Int .
-	vars o w : Float .
+	vars id id1 id2 Pro Con S n Pro1 Pro2 Con1 Con2 : Nat .
+	vars g g1 g2 z1 z2 : Int .
+	vars o o1 o2 w p oi oj ho hp : Float .
 	
 	--- get id of agent
-	--- op getID : Agent -> Nat .
-	--- eq getID(ag(id,g,o,Pro, Con)) = id .
-
-	--- get number of positive arguments
-	--- op getPosArg : Agent -> Nat .
-	--- eq getPosArg(ag(id,g,o,Pro,Con)) = Pro .
+	op getID : Agent -> Nat .
+	eq getID(ag(id,g,o,Pro, Con)) = id .
 
 	--- calculate opinion based on Pro and Con arguments
 	op computeOpinion : Nat Nat -> Float .
 	eq computeOpinion(Pro,Con) = 2.0 * ( float(Pro) / float(Pro + Con) ) - 1.0 .
 
 
-	--- calculate the probability that the agent communicates a pro argument and
-	--- calculate the probability that the agent drops a pro argument (both proabilities have the same formula)
-	op computeProb : Agent -> Float .
-	eq computeProb(ag(id,g,o,Pro,Con)) = 0.5 * (o + 1.0) .
+	--- calculate the probability (based on the opinion o) that the agent communicates a pro argument and
+	--- calculate the probability (based on the opinion o) that the agent drops a pro argument (both proabilities have the same formula)
+	op computeProb : Float -> Float .
+	eq computeProb(o) = 0.5 * (o + 1.0) .
+
+	--- probability based experiment that selects the type of the communicated argument/dropped argument
+	--- the communicated/dropped argument has a probability p of being pro, and 1-p of being con 
+	--- true = pro argument, false = con argument
+	op commDropArg : Float -> Bool .
+	eq commDropArg(p) = if sampleBerWithP(p) then true 
+											else false fi .
+
+	--- computes the magnitude of the opinion adjustment, based on the opinion of agents j,i and 
+	--- the memory size S. j shares the argument with i (j --> i)
+	op computeOpAdj : Float Float Nat -> Float .
+	op computeOpAdj2 : Bool Bool Nat -> Float .
+	
+	eq computeOpAdj(oj, oi, S) = computeOpAdj2(commDropArg(computeProb(oj)), commDropArg(computeProb(oi)), S) .
+	eq computeOpAdj2(true,false,S) = 2.0 / float(S) .
+	eq computeOpAdj2(false,true,S) = -2.0 / float(S) . 
+	eq computeOpAdj2(true,true,S) = 0.0 .
+	eq computeOpAdj2(false,false,S) = 0.0 .
+
+	--- compute the similarity of two agents Ag1 and Ag2 using:
+	--- group identity 1 g1
+	--- group identity 2 g2
+	--- opinion of agent 1 o1
+	--- opinion of agent 2 o2
+	--- parameter ho
+	op computeSimilarity : Int Float Int Float Float -> Float .
+	eq computeSimilarity(g1,o1,g2,o2,ho) = 
+											(1.0 - (float(abs(g1 - g2)) + ho * abs(o1 - o2)) / (2.0 + 2.0 * ho)) .
+
+
+	--- truncatig function, used if the calculated opinion is outside the interval [-1,1]
+	op truncatingFunct : Float -> Float .
+	ceq truncatingFunct(o) = 1.0 if o > 1.0 .
+	ceq truncatingFunct(o) = -1.0 if o < -1.0 .
+	eq truncatingFunct(o) = o [owise] . 
+
+	--- Interaction between agents Ag1 <- Ag2, i.e.
+  --- Ag2 shares an argument to Ag1, and Ag1 updates its opinion
+  --- it takes into account:
+  --- 	- The two agents Ag1 (first parameter) and Ag2 (second parameter)
+  --- 	- ho parameter
+  --- 	- hp parameter
+  op interaction : Agent Agent Float Float -> Agent .
+  eq interaction(ag(id1,g1,o1,Pro1,Con1), ag(id2,g2,o2,Pro2,Con2), ho, hp) = ag(id1, g1, truncatingFunct(o1 + computeOpAdj(o2,o1,Pro1 + Con1) * (computeSimilarity(g1,o1,g2,o2,ho) ^ hp)), Pro1, Con1) .
+
+	--- calculate the magnitude of the opinion adjustment 
 
 	--- initialize an Agent using: 
 	---   - The id of the agent (id)
@@ -74,9 +116,29 @@ mod NETWORK is
 	pr SET{Agent} * (sort Set{Agent} to Network, sort NeSet{Agent} to NeNetwork) .
 
 --- Equations:
-	vars N S n mid : Nat .
+	vars N S n mid a : Nat .
 	vars w : Float .
 	vars Net : Network .
+	vars Ag Ag2 : Agent .
+
+	--- select the nth argument of a Network
+	op selectElement : Network Nat -> Agent .
+	eq selectElement((Ag,Net), 0) = Ag .
+	eq selectElement((Ag,Net), s(a)) = selectElement(Net, a) .
+
+	--- Randomly select an agent from a Network
+	op randomPick : Network -> Agent .
+	eq randomPick(Net) = selectElement(Net, genRandom(0,| Net | - 1)) .
+
+	--- replaces the given agent in the network
+	op replaceAgent : Agent Network -> Network .
+	eq replaceAgent(Ag, (Ag2, Net)) = if getID(Ag) == getID(Ag2)
+																		then Ag, Net
+																		else Ag2, replaceAgent(Ag, Net)
+																		fi .
+	eq replaceAgent(Ag, (empty).Network) = (empty).Network .
+
+	--- eliminates an agent from the network
 
 	--- initialize a network. The parameters are:
 	---   - The size of the network (N)
@@ -96,4 +158,6 @@ mod NETWORK is
 endm 
 
 
-
+mod PRELUDE is
+	pr NETWORK .
+endm
