@@ -32,7 +32,7 @@ mod ISMODEL is
   vars Ag Ag1 Ag2 : Agent .
   vars MAX N S n : Nat .
   vars ho hs w : Float .
-  vars Net Net' : Network .
+  vars Net Net' : NeNetwork .
 
   --- System steps ------------------------------------------------------
   
@@ -48,7 +48,7 @@ mod ISMODEL is
 
   --- make interaction between agents and update the network (probability in interaction (random pick of argument))
   --- eliminate the agent1 from the set of available agents
-  rl < {Net}, {Net'}, s(n), S, ho, hs, {Ag1}, {Ag2} > => < {replaceAgent(interaction(Ag1,Ag2,S,ho,hs),Net)}, {Net' \ Ag1}, s(n), S, ho, hs > .
+  rl < {Net}, {Net'}, s(n), S, ho, hs, {Ag1}, {Ag2} > => < {replaceAgent(interaction(Ag1,Ag2,S),Net)}, {Net' \ Ag1}, s(n), S, ho, hs > .
 
   --- if already looped all agents, reduce the number of iterations, and start over (deterministic)
   rl < {Net}, {(empty).Network}, s(n), S, ho, hs > => < {Net}, {Net}, n, S, ho, hs > .

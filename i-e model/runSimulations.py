@@ -68,6 +68,23 @@ def evaluateState(stateString, equation):
 
 	return answer
 
+def getPolarizationVal(string):
+	#open the maude console
+	process = subprocess.Popen(["../Maude/maude.linux64", "simulation.maude"], stdin=subprocess.PIPE, 
+	                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	
+	command = f"red computeBiPolarization({string}) .\n"
+	output, error = process.communicate(command.encode()) 
+	#get decoded output and the state
+	output = output.decode()
+	pattern = r"result FiniteFloat:(.*)"
+	match = re.search(pattern, output)
+	if match:
+		return float(match.group(1))
+	else:
+		return None
+
+
 def main():
 
 	#start counting time
@@ -82,34 +99,44 @@ def main():
 
 	
 	#count occurences
-	moderate = 0
 	extreme = 0
 	polarization = 0
+	noConvergence = 0
+	polarizationVals = []
 	
 	#make simulations
 	for i in range(arg1):
+
 		state = runSimulation(arg2 + i, arg3)
-		print(extractNetwork(state))
-		if(evaluateState(state,"moderate")): moderate += 1
-		elif(evaluateState(state,"extreme")): extreme += 1
-		elif(evaluateState(state,"polarization")): polarization += 1
-		
+		polVal = getPolarizationVal(state)
+		polarizationVals.append(polVal)
 		print("############################################")
-		print(f"Number of moderate concesus: {str(moderate)}")
+		print(f"STATE {str(i + 1)}")
+		print("---------------------------------------------")
+		print(extractNetwork(state))
+		print("---------------------------------------------")
+		if(evaluateState(state,"extreme")): extreme += 1
+		elif(evaluateState(state,"polarization")): polarization += 1
+		else: noConvergence += 1
+		
 		print(f"Number of extreme concesus: {str(extreme)}")
-		print(f"Number of bi-polarization: {str(polarization)}")
-	
+		print(f"Number of maximal between-group bi-polarization: {str(polarization)}")
+		print(f"Number of no convergence: {str(noConvergence)}")
+		print(f"between-group bi-polarization state {str(i + 1)}: {str(polVal)}")
+
 	#get total time
 	end_time = time.time()
 	total_time = end_time - start_time
 	#print results
-	print("############################################")
+	print("============================================")
 	print("Final Results:")
-	print("############################################")
+	print("============================================")
+	print(f"Number of simulations: {str(arg1)}")
 	print(f"Simulation time: {str(total_time)} seconds")
-	print(f"Number of moderate concesus: {str(moderate)}")
 	print(f"Number of extreme concesus: {str(extreme)}")
-	print(f"Number of bi-polarization: {str(polarization)}")
+	print(f"Number of maximal between-group bi-polarization: {str(polarization)}")
+	print(f"Number of no convergence: {str(noConvergence)}")
+	print(f"between-group bi-polarization values: {polarizationVals}")
 
 
 

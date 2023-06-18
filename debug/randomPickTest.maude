@@ -1,0 +1,23 @@
+load prelude .
+
+mod TEST is
+  pr PRELUDE .
+
+
+  sort State .
+  op <{_},{_},_> : Network Network Nat -> State [ctor] .
+
+  --- Variables
+  vars Ag  : Agent .
+  vars n : Nat .
+  vars Net Net' : Network .
+
+  rl < {Net}, {Net'}, s(n) > => <{Net}, {insert(randomPick(Net), Net')}, n > .
+
+
+  --- experiment
+  op experiment : -> State . 
+  eq experiment = < {initNetwork(10,4,0.8)}, {(empty).Network}, 5 > .
+endm
+
+rew experiment .

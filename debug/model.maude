@@ -1,12 +1,12 @@
 load prelude .
 
-mod IEMODEL is
+mod MODEL is
   pr PRELUDE .
 
   --- definition of structure that holds parameters for initialization
   --- - The max number of iterations (MAX)
   --- - The size of the network (N)
-  --- -	The size of the memory (S)
+  --- - The size of the memory (S)
   --- - The pro argument probability (w)
   --- - ho parameter
   --- - hp parameter
@@ -17,40 +17,49 @@ mod IEMODEL is
   --- - Network  of the system
   --- - Auxiliary Network to loop over agents
   --- - Natural number that simbolizes the number of remaining iterations
+  --- - S parameter
   --- - h0 parameter
   --- - hp parameter
   --- - Agent1 selected for interaction
   --- - Agent2 wich will influence Agent1 
   
   sort State .
-  op <{_},{_},_,_,_,_> : Network Network Nat Nat Float Float  -> State [ctor] .
-  op <{_},{_},_,_,_,_,_> : Network Network Nat Nat Float Float Agent -> State [ctor] .
-  op <{_},{_},_,_,_,_,{_},{_}> : Network Network Nat Nat Float Float Agent Agent -> State [ctor] .
+  op <{_},{_},_,_,_,_,_> : Network Network Nat Nat Float Float Bool -> State [ctor] .
+  op <{_},{_},_,_,_,_,_,_> : Network Network Nat Nat Float Float Agent Bool -> State [ctor] .
+  op <{_},{_},_,_,_,_,{_},{_},_> : Network Network Nat Nat Float Float Agent Agent Bool -> State [ctor] .
 
   --- Variables
   vars Ag Ag1 Ag2 : Agent .
   vars MAX N S n : Nat .
   vars ho hp w : Float .
   vars Net Net' : NeNetwork .
+  vars flag : Bool .
+
+  --- auxiliary for debugging
+  op tick : State -> State .
+  eq tick(< {Net}, {Net'}, s(n), S, ho, hp, false >) = < {Net}, {Net'}, s(n), S, ho, hp, true > .
+  eq tick(< {Net}, {Net'}, s(n), S, ho, hp, Ag, false >) = < {Net}, {Net'}, s(n), S, ho, hp, Ag, true > .
+  eq tick(< {Net}, {Net'}, s(n), S, ho, hp, {Ag1}, {Ag2}, false >) = < {Net}, {Net'}, s(n), S, ho, hp, {Ag1}, {Ag2}, true > .
+  eq tick(< {Net}, {(empty).Network}, s(n), S, ho, hp, false >) = < {Net}, {(empty).Network}, s(n), S, ho, hp, true > .
 
   --- System steps ------------------------------------------------------
   
   --- initial state
   eq par(MAX,N,S,w,ho,hp) = par2(initNetwork(N,S,w),MAX,S,ho,hp) .
-  eq par2(Net,MAX,S,ho,hp) = < {Net}, {Net}, MAX, S, ho, hp > .
+  eq par2(Net,MAX,S,ho,hp) = < {Net}, {Net}, MAX, S, ho, hp, false > .
   
   --- loop over set of agents randomly (probabilistic since randomPick is used)
-  rl < {Net}, {Net'}, s(n), S, ho, hp > => < {Net}, {Net'}, s(n), S, ho, hp, randomPick(Net') > . 
+  rl < {Net}, {Net'}, s(n), S, ho, hp, true > => < {Net}, {Net'}, s(n), S, ho, hp, randomPick(Net'), false > . 
   
   --- randomly select a partner for interaction (probability involved in randomPick)
-  rl < {Net}, {Net'}, s(n), S, ho, hp, Ag > => < {Net}, {Net'}, s(n), S, ho, hp, {Ag}, {randomPick(Net \ Ag)} > .
+  rl < {Net}, {Net'}, s(n), S, ho, hp, Ag, true > => < {Net}, {Net'}, s(n), S, ho, hp, {Ag}, {randomPick(Net \ Ag)}, false > .
 
   --- make interaction between agents and update the network (probability in interaction (random pick of argument))
   --- eliminate the agent1 from the set of available agents
-  rl < {Net}, {Net'}, s(n), S, ho, hp, {Ag1}, {Ag2} > => < {replaceAgent(interaction(Ag1,Ag2,S,ho,hp),Net)}, {Net' \ Ag1}, s(n), S, ho, hp > .
+  rl < {Net}, {Net'}, s(n), S, ho, hp, {Ag1}, {Ag2}, true > => < {replaceAgent(interaction(Ag1,Ag2,S,ho,hp),Net)}, {Net' \ Ag1}, s(n), S, ho, hp, false > .
 
   --- if already looped all agents, reduce the number of iterations, and start over (deterministic)
-  rl < {Net}, {(empty).Network}, s(n), S, ho, hp > => < {Net}, {Net}, n, S, ho, hp > .
+  rl < {Net}, {(empty).Network}, s(n), S, ho, hp, true > => < {Net}, {Net}, n, S, ho, hp, false > .
 
   --- -------------------------------------------------------------------
 

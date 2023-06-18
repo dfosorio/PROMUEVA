@@ -10,53 +10,45 @@ mod AGENTS is
 --- * id is a natural number to identify the agent
 --- * g is the group identity {-1,+1}
 --- * o is the opinion [-1,1]
---- * Pro is the number of pro arguments the agent has
---- * Con is the number of con arguments the agent has
---- * In every configuration, Pro + Con = S, where S is the system parameter
----   for the memory size
 	pr SAMPLER .
 	pr FLOAT .
 
 
 	sort Agent .
-	op ag : Nat Int Float Nat Nat -> Agent [ctor] .
+	op ag : Nat Int Float -> Agent [ctor] .
 
 --- Equations
-	vars id id1 id2 Pro Con S n Pro1 Pro2 Con1 Con2 : Nat .
+	vars id id1 id2 Pro Con S n : Nat .
 	vars g g1 g2 z1 z2 : Int .
-	vars o o1 o2 w p oi oj ho hp : Float .
+	vars o o1 o2 w p oi oj ho hp R : Float .
 	
 	--- get id of agent
 	op getID : Agent -> Nat .
-	eq getID(ag(id,g,o,Pro, Con)) = id .
+	eq getID(ag(id,g,o)) = id .
 
 	--- calculate opinion based on Pro and Con arguments
 	op computeOpinion : Nat Nat -> Float .
-	eq computeOpinion(Pro,Con) = 2.0 * ( float(Pro) / float(Pro + Con) ) - 1.0 .
+	eq computeOpinion(Pro, Con) = 2.0 * ( float(Pro) / float(Pro + Con) ) - 1.0 .
 
 
 	--- calculate the probability (based on the opinion o) that the agent communicates a pro argument and
-	--- calculate the probability (based on the opinion o) that the agent drops a pro argument (both proabilities have the same formula)
+	--- calculate the probability (based on the opinion o) that the agent drops a pro argument 
+	--- (both proabilities have the same formula)
 	op computeProb : Float -> Float .
 	eq computeProb(o) = 0.5 * (o + 1.0) .
-
-	--- probability based experiment that selects the type of the communicated/dropped argument
-	--- the communicated/dropped argument has a probability p of being pro, and 1-p of being con 
-	--- true = pro argument, false = con argument
-	op commDropArg : Float -> Bool .
-	eq commDropArg(p) = if sampleBerWithP(p) then true 
-											else false fi .
 
 	--- computes the magnitude of the opinion adjustment, based on the opinion of agents j,i and 
 	--- the memory size S. j shares the argument with i (j --> i)
 	op computeOpAdj : Float Float Nat -> Float .
-	op computeOpAdj2 : Bool Bool Nat -> Float .
+	op computeOpAdj2 : Float Float Nat Float -> Float .
+	op computeOpAdj3 : Bool Bool Nat -> Float .
 	
-	eq computeOpAdj(oj, oi, S) = computeOpAdj2(commDropArg(computeProb(oj)), commDropArg(computeProb(oi)), S) .
-	eq computeOpAdj2(true,false,S) = 2.0 / float(S) .
-	eq computeOpAdj2(false,true,S) = -2.0 / float(S) . 
-	eq computeOpAdj2(true,true,S) = 0.0 .
-	eq computeOpAdj2(false,false,S) = 0.0 .
+	eq computeOpAdj(oj, oi, S) = computeOpAdj2(oj, oi, S, randFloat) .
+	eq computeOpAdj2(oj, oi, S, R) = computeOpAdj3((R < computeProb(oj)), (R < computeProb(oi)), S) . 
+	eq computeOpAdj3(true,false,S) = 2.0 / float(S) . --- j picks pro, i drops con
+	eq computeOpAdj3(false,true,S) = -2.0 / float(S) . --- j picks con, i drops pro
+	eq computeOpAdj3(true,true,S) = 0.0 . --- j picks pro, i drops pro
+	eq computeOpAdj3(false,false,S) = 0.0 . --- j picks con, i picks con
 
 	--- compute the similarity of two agents Ag1 and Ag2 using:
 	--- group identity 1 g1
@@ -76,13 +68,14 @@ mod AGENTS is
 	eq truncatingFunct(o) = o [owise] . 
 
 	--- Interaction between agents Ag1 <- Ag2, i.e.
-  --- Ag2 shares an argument to Ag1, and Ag1 updates its opinion
-  --- it takes into account:
-  --- 	- The two agents Ag1 (first parameter) and Ag2 (second parameter)
-  --- 	- ho parameter
-  --- 	- hp parameter
-  op interaction : Agent Agent Float Float -> Agent .
-  eq interaction(ag(id1,g1,o1,Pro1,Con1), ag(id2,g2,o2,Pro2,Con2), ho, hp) = ag(id1, g1, truncatingFunct(o1 + computeOpAdj(o1,o2,Pro1 + Con1) * (computeSimilarity(g1,o1,g2,o2,ho) ^ hp)), Pro1, Con1) .
+	--- Ag2 shares an argument to Ag1, and Ag1 updates its opinion
+	--- it takes into account:
+	--- 	- The two agents Ag1 (first parameter) and Ag2 (second parameter)
+	--- 	- S parameter
+	--- 	- ho parameter
+	--- 	- hp parameter
+	op interaction : Agent Agent Nat Float Float -> Agent .
+	eq interaction(ag(id1,g1,o1), ag(id2,g2,o2), S, ho, hp) = ag(id1, g1, truncatingFunct(o1 + computeOpAdj(o2,o1,S) * (computeSimilarity(g1,o1,g2,o2,ho) ^ hp))) .
 
 	--- initialize an Agent using: 
 	---   - The id of the agent (id)
@@ -93,12 +86,12 @@ mod AGENTS is
 	op initAgent2 : Nat Int Nat Float Nat Nat -> Agent .
 
 	eq initAgent(id,g,S,w) = initAgent2(id,g,S,w,0,0) .
-	eq initAgent2(id,g,0,w,Pro,Con) = ag(id,g,computeOpinion(Pro,Con),Pro,Con) .
+	eq initAgent2(id,g,0,w,Pro,Con) = ag(id,g,computeOpinion(Pro, Con)) .
 	
 	eq initAgent2(id,1,s(n),w,Pro,Con) = if sampleBerWithP(w) then initAgent2(id,1,n,w,s(Pro),Con) 
 															  else initAgent2(id,1,n,w,Pro,s(Con)) fi .	
 	eq initAgent2(id,-1,s(n),w,Pro,Con) = if sampleBerWithP(w) then initAgent2(id,-1,n,w,Pro,s(Con)) 
-															   else initAgent2(id,-1,n,w,s(Pro),Con) fi .  
+															   else initAgent2(id,-1,n,w,s(Pro),Con) fi . 
 
 endm 
 

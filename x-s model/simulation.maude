@@ -3,20 +3,29 @@ load model .
 mod SIMULATIONS is
 	pr XSMODEL .
 
-	--- simulation parameters
-	--- - MAX = 10^4
-    --- - N = 10 and N = 100 for experiment2
+	  --- simulation parameters
+	  --- - MAX = 10^4
+    --- - N = 10
+    --- - P = 10
+    --- - C = 10
+    --- - S = 4
+    --- - w = 0.8
+    --- - h0 = 0.3
+    --- - hs = 4.0
+	  op experiment1 : -> State .
+	  eq experiment1 = par(10000,10,10,10,4,0.8,0.3,4.0) .
+    
+    --- simulation parameters
+    --- - MAX = 10^4
+    --- - N = 10
     --- - P = 10
     --- - C = 10
     --- - S = 4
     --- - w = 0.8
     --- - h0 = 3.0
     --- - hs = 4.0
-	  op experiment1 : -> State .
-	  eq experiment1 = par(10000,10,10,10,4,0.8,3.0,4.0) .
-
     op experiment2 : -> State .
-    eq experiment2 = par(10000,100,10,10,4,0.8,3.0,4.0) .
+    eq experiment2 = par(10000,10,10,10,4,0.8,3.0,4.0) .
 
     --- properties 
     vars n id : Nat .
@@ -64,19 +73,24 @@ mod SIMULATIONS is
                                                     fi .
     eq extremeConcensus3( (empty).Network, o') = true .
     
+
+
     --- Maximal between-group bi-polarization: both demographic groups have internally reached 
     --- extreme consensus on the opposite poles of the opinion spectrum. When this occurs, the absolute 
     --- difference between the average opinions of the two groups equals 2
-    op biPolarization : State -> Bool .
-    op biPolarization2 : Network Float Float Float -> Bool .
+    op computeBiPolarization : State -> Float .
+    op computeBiPolarization2 : Network Float Float Float -> Float .
 
-    eq biPolarization(< {Net}, {Net'}, n, ho, hs >) = biPolarization2(Net, 0.0, 0.0, (float(| Net |) / 2.0))  .
-    eq biPolarization2((ag(id,g,o,S), Net), f1, f2, FS) = if g == 1 then
-                                                      biPolarization2(Net, f1 + o, f2, FS)
+    eq computeBiPolarization(< {Net}, {Net'}, n, ho, hs >) = computeBiPolarization2(Net, 0.0, 0.0, (float(| Net |) / 2.0)) .
+    eq computeBiPolarization2((ag(id,g,o,S), Net), f1, f2, FS) = if g == 1 then
+                                                      computeBiPolarization2(Net, f1 + o, f2, FS)
                                                       else
-                                                      biPolarization2(Net, f1, f2 + o, FS)
+                                                      computeBiPolarization2(Net, f1, f2 + o, FS)
                                                       fi .
-    eq biPolarization2((empty).Network, f1, f2, FS) = abs((f1 / FS) - (f2 / FS)) == 2.0 . 
+    eq computeBiPolarization2((empty).Network, f1, f2, FS) = abs((f1 / FS) - (f2 / FS)) . 
+
+    op biPolarization : State -> Bool .
+    eq biPolarization(< {Net}, {Net'}, n, ho, hs >) = computeBiPolarization(< {Net}, {Net'}, n, ho, hs >) == 2.0 .
 
 
 endm

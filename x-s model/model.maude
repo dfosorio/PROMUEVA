@@ -33,7 +33,7 @@ mod XSMODEL is
   vars Ag Ag1 Ag2 : Agent .
   vars MAX N P C S n : Nat .
   vars ho hs w : Float .
-  vars Net Net' : Network .
+  vars Net Net' : NeNetwork .
 
   --- System steps ------------------------------------------------------
   

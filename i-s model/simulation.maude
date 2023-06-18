@@ -3,18 +3,25 @@ load model .
 mod SIMULATIONS is
   pr ISMODEL .
 
-  --- simulation parameters
-  --- - MAX = 10^4
-    --- - N = 10 and N = 100 for experiment2
+    --- simulation parameters
+    --- - MAX = 10^4
+    --- - N = 10
+    --- - S = 4
+    --- - w = 0.8
+    --- - h0 = 0.3
+    --- - hs = 4.0
+    op experiment1 : -> State .
+    eq experiment1 = par(10000,10,4,0.8,0.3,4.0) .
+    
+    --- simulation parameters
+    --- - MAX = 10^4
+    --- - N = 10
     --- - S = 4
     --- - w = 0.8
     --- - h0 = 3.0
-    --- - hp = 4.0
-    op experiment1 : -> State .
-    eq experiment1 = par(10000,10,4,0.8,3.0,4.0) .
-
+    --- - hs = 4.0
     op experiment2 : -> State .
-    eq experiment2 = par(10000,100,4,0.8,3.0,4.0) .
+    eq experiment2 = par(10000,10,4,0.8,3.0,4.0) .
 
     --- properties 
     vars n id S : Nat .
@@ -23,24 +30,6 @@ mod SIMULATIONS is
     vars Ag : Agent .
     vars Net Net' : Network .
 
-
-    --- Moderate concensus: all agents hold the same opinion and is neither -1 nor 1.
-    op moderateConcensus : State -> Bool .
-    op moderateConcensus2 : Network -> Bool .
-    op moderateConcensus3 : Network Float -> Bool .
-
-    eq moderateConcensus(< {Net}, {Net'}, n, S, ho, hp >) = moderateConcensus2(Net) .
-    eq moderateConcensus2( (ag(id,g,o), Net) ) = if o =/= 1.0 and o =/= -1.0 then
-                                                 moderateConcensus3(Net, o)
-                                                 else
-                                                 false
-                                                 fi .
-    eq moderateConcensus3( (ag(id,g,o), Net), o') = if o == o' then
-                                                    moderateConcensus3( Net, o')
-                                                    else
-                                                    false
-                                                    fi .
-    eq moderateConcensus3( (empty).Network, o') = true .
 
     --- Extreme consensus: all agents agree on the same opinion coinciding with one of the poles 
     --- of the opinion spectrum [− 1, + 1].
@@ -64,16 +53,19 @@ mod SIMULATIONS is
     --- Maximal between-group bi-polarization: both demographic groups have internally reached 
     --- extreme consensus on the opposite poles of the opinion spectrum. When this occurs, the absolute 
     --- difference between the average opinions of the two groups equals 2
-    op biPolarization : State -> Bool .
-    op biPolarization2 : Network Float Float Float -> Bool .
+    op computeBiPolarization : State -> Float .
+    op computeBiPolarization2 : Network Float Float Float -> Float .
 
-    eq biPolarization(< {Net}, {Net'}, n, S, ho, hp >) = biPolarization2(Net, 0.0, 0.0, (float(| Net |) / 2.0))  .
-    eq biPolarization2((ag(id,g,o), Net), f1, f2, FS) = if g == 1 then
-                                                      biPolarization2(Net, f1 + o, f2, FS)
+    eq computeBiPolarization(< {Net}, {Net'}, n, S, ho, hp >) = computeBiPolarization2(Net, 0.0, 0.0, (float(| Net |) / 2.0)) .
+    eq computeBiPolarization2((ag(id,g,o), Net), f1, f2, FS) = if g == 1 then
+                                                      computeBiPolarization2(Net, f1 + o, f2, FS)
                                                       else
-                                                      biPolarization2(Net, f1, f2 + o, FS)
+                                                      computeBiPolarization2(Net, f1, f2 + o, FS)
                                                       fi .
-    eq biPolarization2((empty).Network, f1, f2, FS) = abs((f1 / FS) - (f2 / FS)) == 2.0 . 
+    eq computeBiPolarization2((empty).Network, f1, f2, FS) = abs((f1 / FS) - (f2 / FS)) . 
+
+    op biPolarization : State -> Bool .
+    eq biPolarization(< {Net}, {Net'}, n, S, ho, hp >) = computeBiPolarization(< {Net}, {Net'}, n, S, ho, hp >) == 2.0 .
 
 
 endm
