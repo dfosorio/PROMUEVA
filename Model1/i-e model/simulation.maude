@@ -23,6 +23,21 @@ mod SIMULATIONS is
     op experiment2 : -> State .
     eq experiment2 = par(10000,10,4,0.8,3.0,4.0) .
 
+    op experiment3 : -> State .
+    eq experiment3 = par(10000,10,4,0.8,0.3,1.0) .
+
+    op experiment4 : -> State .
+    eq experiment4 = par(10000,10,4,0.8,0.3,2.0) .
+
+    op experiment5 : -> State .
+    eq experiment5 = par(10000,10,4,0.8,0.3,3.0) .
+
+    op experiment6 : -> State .
+    eq experiment6 = par(10000,10,4,0.8,0.3,4.0) .
+
+    op experiment7 : -> State .
+    eq experiment7 = par(10000,10,4,0.8,0.3,5.0) .
+
     --- properties 
     vars n id S : Nat .
     vars ho hp o o' f1 f2 FS : Float .

@@ -35,6 +35,21 @@ mod SIMULATIONS is
     vars Ag : Agent .
     vars Net Net' : Network .
 
+    op experiment3 : -> State .
+    eq experiment3 = par(10000,10,10,10,4,0.8,0.3,1.0) .
+
+    op experiment4 : -> State .
+    eq experiment4 = par(10000,10,10,10,4,0.8,0.3,2.0) .
+
+    op experiment5 : -> State .
+    eq experiment5 = par(10000,10,10,10,4,0.8,0.3,3.0) .
+
+    op experiment6 : -> State .
+    eq experiment6 = par(10000,10,10,10,4,0.8,0.3,4.0) .
+
+    op experiment7 : -> State .
+    eq experiment7 = par(10000,10,10,10,4,0.8,0.3,5.0) .
+
 
     --- Moderate concensus: all agents hold the same opinion and is neither -1 nor 1.
     op moderateConcensus : State -> Bool .
